@@ -1,0 +1,150 @@
+* {
+  box-sizing: border-box;
+}
+
+.auth-container {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  background: #f1f5f9;
+}
+
+.auth-form {
+  width: 100%;
+  max-width: 400px;
+  padding: 30px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.auth-form h2 {
+  text-align: center;
+  margin-bottom: 24px;
+  color: #1e293b;
+}
+
+.auth-form label {
+  display: block;
+  margin: 14px 0 6px;
+  font-weight: 600;
+}
+
+.auth-form input {
+  width: 100%;
+  padding: 11px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 15px;
+}
+
+.auth-form input:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+.auth-form > button[type="submit"] {
+  width: 100%;
+  padding: 12px;
+  margin-top: 22px;
+  color: white;
+  background: #2563eb;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.auth-form p {
+  text-align: center;
+  margin-top: 18px;
+}
+
+.switch-button {
+  color: #2563eb;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.message {
+  color: #dc2626;
+}
+
+.welcome-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: #eff6ff;
+}
+
+.welcome-header button {
+  padding: 8px 14px;
+  color: white;
+  background: #dc2626;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+
+.welcome-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+  background: #f3f4f6;
+}
+
+.profile-info {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.profile-info h2 {
+  margin: 0;
+}
+
+.profile-dropdown {
+  position: relative;
+}
+
+.profile-dropdown summary {
+  cursor: pointer;
+  padding: 8px 14px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: white;
+}
+
+.profile-card {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 10;
+  width: 280px;
+  padding: 12px 16px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 12%);
+}
+
+.profile-card p {
+  margin: 10px 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 600px) {
+  .welcome-header,
+  .profile-info {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
