@@ -21,12 +21,12 @@ function ExcelData({ userContact , userName }: ExcelDataProps) {
   const [saving, setSaving] = useState(false);
 
   // Find the contact column regardless of capitalization.
-const getContactHeader = (row: RowData) =>
-  Object.keys(row).find((header) =>
-    ["contact", "contact number", "mobile", "phone"].includes(
-      header.trim().toLowerCase()
-    )
-  );
+// const getContactHeader = (row: RowData) =>
+//   Object.keys(row).find((header) =>
+//     ["contact", "contact number", "mobile", "phone"].includes(
+//       header.trim().toLowerCase()
+//     )
+//   );
 
   // Keep each row's original index for edit/delete operations.
 
@@ -372,7 +372,7 @@ const handleAdd = () => {
                   >
                     {editingIndex === originalIndex ? (
                       <input
-                        value={editRow[header] ?? ""}
+                        value={String(editRow[header] ?? "")}
                         onChange={(event) =>
                           handleChange(header, event.target.value)
                         }
