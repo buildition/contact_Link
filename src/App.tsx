@@ -1,7 +1,8 @@
-import { useState } from "react";
+/// <reference types="google.maps" />
+
+import { useState, useEffect, useRef } from "react";
 import "./App.css";
 import ExcelData from "./ExcelUserData";
-import { useEffect, useRef } from "react";
 import { setOptions } from "@googlemaps/js-api-loader";
 
 type User = {
@@ -12,68 +13,85 @@ type User = {
   address: string;
   password: string;
 };
+
+setOptions({
+  key: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+  v: "weekly",
+});
+
 function App() {
 
   const API_URL = "https://script.google.com/macros/s/AKfycbz31F1mGIE_8SfDKiNcPy0fslv8qB7ZViq0jZsneiqRVbjqXXVLvYDNx-FHlUvaz3Y2pg/exec";
 
 const locationRef = useRef<HTMLDivElement>(null);
+const [isSignup, setIsSignup] = useState(true);
+
+const [user, setUser] = useState<User>({
+  name: "",
+  profession: "",
+  contact: "",
+  email: "",
+  address: "",
+  password: "",
+});
+
+const [loggedIn, setLoggedIn] = useState(false);
+const [message, setMessage] = useState("");
+
 
 useEffect(() => {
-  const initializeAutocomplete = async () => {
-    setOptions({
-      key: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-      v: "weekly",
-    });
+  let autocomplete: google.maps.places.PlaceAutocompleteElement | null = null;
+  let cancelled = false;
 
+  const initializeAutocomplete = async () => {
     const { PlaceAutocompleteElement } =
       (await google.maps.importLibrary(
         "places"
       )) as google.maps.PlacesLibrary;
 
-    const autocomplete = new PlaceAutocompleteElement();
+    if (cancelled || !locationRef.current) return;
+
+    autocomplete = new PlaceAutocompleteElement();
 
     autocomplete.placeholder = "Search your service location...";
     autocomplete.includedRegionCodes = ["in"];
 
     autocomplete.addEventListener(
       "gmp-select",
-      async (event) => {
-        const placePrediction = (
-          event as google.maps.places.PlacePredictionSelectEvent
-        ).placePrediction;
+      async (event: google.maps.places.PlacePredictionSelectEvent) => {
+        try {
+          const place = event.placePrediction.toPlace();
 
-        const place = placePrediction.toPlace();
+          await place.fetchFields({
+            fields: ["formattedAddress", "location"],
+          });
 
-        await place.fetchFields({
-          fields: ["formattedAddress", "location"],
-        });
-
-        setUser((previous) => ({
-          ...previous,
-          address: place.formattedAddress || "",
-        }));
+          setUser((previous) => ({
+            ...previous,
+            address: place.formattedAddress || "",
+          }));
+        } catch (error) {
+          console.error("Place selection error:", error);
+          setMessage("Unable to fetch the selected location.");
+        }
       }
     );
 
-    if (locationRef.current) {
-      locationRef.current.replaceChildren(autocomplete);
-    }
+    locationRef.current.replaceChildren(autocomplete);
   };
 
-  initializeAutocomplete().catch(console.error);
+  initializeAutocomplete().catch((error) => {
+    console.error("Google Maps initialization error:", error);
+    setMessage("Unable to load Google Maps. Please try again.");
+  });
+
+  return () => {
+    cancelled = true;
+    autocomplete?.remove();
+  };
 }, []);
 
-  const [isSignup, setIsSignup] = useState(true);
-  const [user, setUser] = useState<User>({
-    name: "",
-    profession: "",
-    contact: "",
-    email: "",
-    address: "",
-    password: "",
-  });
-  const [loggedIn, setLoggedIn] = useState(false);
-  const [message, setMessage] = useState("");
+
 
   const handleChange = (
     event: React.ChangeEvent<HTMLInputElement>
@@ -116,6 +134,11 @@ const handleSignup = async (
 ) => {
   event.preventDefault();
   setMessage("");
+
+  if (!user.address.trim()) {
+  setMessage("Please select your service location.");
+  return;
+}
 
   try {
     const response = await fetch(API_URL, {
@@ -284,7 +307,7 @@ if (loggedIn) {
         }
         required
       >
-      <option value="" disabled selected>-- Select a Profession --</option>
+      <option value="" disabled>-- Select a Profession --</option>
 
       <optgroup label="Healthcare & Medicine">
         <option value="doctor">Doctor / Physician</option>
