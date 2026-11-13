@@ -1,6 +1,8 @@
 import { useState } from "react";
 import "./App.css";
 import ExcelData from "./ExcelUserData";
+import { useEffect, useRef } from "react";
+import { setOptions } from "@googlemaps/js-api-loader";
 
 type User = {
   name: string;
@@ -13,6 +15,53 @@ type User = {
 function App() {
 
   const API_URL = "https://script.google.com/macros/s/AKfycbz31F1mGIE_8SfDKiNcPy0fslv8qB7ZViq0jZsneiqRVbjqXXVLvYDNx-FHlUvaz3Y2pg/exec";
+
+const locationRef = useRef<HTMLDivElement>(null);
+
+useEffect(() => {
+  const initializeAutocomplete = async () => {
+    setOptions({
+      key: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+      v: "weekly",
+    });
+
+    const { PlaceAutocompleteElement } =
+      (await google.maps.importLibrary(
+        "places"
+      )) as google.maps.PlacesLibrary;
+
+    const autocomplete = new PlaceAutocompleteElement();
+
+    autocomplete.placeholder = "Search your service location...";
+    autocomplete.includedRegionCodes = ["in"];
+
+    autocomplete.addEventListener(
+      "gmp-select",
+      async (event) => {
+        const placePrediction = (
+          event as google.maps.places.PlacePredictionSelectEvent
+        ).placePrediction;
+
+        const place = placePrediction.toPlace();
+
+        await place.fetchFields({
+          fields: ["formattedAddress", "location"],
+        });
+
+        setUser((previous) => ({
+          ...previous,
+          address: place.formattedAddress || "",
+        }));
+      }
+    );
+
+    if (locationRef.current) {
+      locationRef.current.replaceChildren(autocomplete);
+    }
+  };
+
+  initializeAutocomplete().catch(console.error);
+}, []);
 
   const [isSignup, setIsSignup] = useState(true);
   const [user, setUser] = useState<User>({
@@ -34,6 +83,32 @@ function App() {
       [event.target.name]: event.target.value,
     });
   };
+
+// const getCurrentLocation = () => {
+//   if (!navigator.geolocation) {
+//     setMessage("Geolocation is not supported by your browser.");
+//     return;
+//   }
+
+//   setMessage("Getting your current location...");
+
+//   navigator.geolocation.getCurrentPosition(
+//     async (position) => {
+//       const { latitude, longitude } = position.coords;
+
+//       setUser((previous) => ({
+//         ...previous,
+//         address: `Latitude: ${latitude}, Longitude: ${longitude}`,
+//       }));
+
+//       setMessage("Location captured successfully!");
+//     },
+//     (error) => {
+//       console.error("Location error:", error);
+//       setMessage("Unable to get location. Please allow location access.");
+//     }
+//   );
+// };
 
  
 const handleSignup = async (
@@ -177,6 +252,7 @@ if (loggedIn) {
   className="auth-form"
   onSubmit={isSignup ? handleSignup : handleLogin}
 >
+  <h1>Contact Link</h1>
   <h2>{isSignup ? "Create Account" : "Login"}</h2>
 
   {message && <p className="message">{message}</p>}
@@ -184,7 +260,7 @@ if (loggedIn) {
   {/* SIGNUP FIELDS */}
   {isSignup && (
     <>
-      <label htmlFor="name">Name</label>
+      <label htmlFor="name">Name<span>*</span></label>
       <input
         id="name"
         name="name"
@@ -195,21 +271,143 @@ if (loggedIn) {
         required
       />
 
-      <label htmlFor="profession">Profession</label>
-      <input
+      <label htmlFor="profession">Profession<span>*</span></label>
+      <select
         id="profession"
         name="profession"
-        type="text"
-        placeholder="Enter your profession"
         value={user.profession}
-        onChange={handleChange}
+        onChange={(event) =>
+          setUser({
+            ...user,
+            profession: event.target.value,
+          })
+        }
         required
-      />
+      >
+      <option value="" disabled selected>-- Select a Profession --</option>
+
+      <optgroup label="Healthcare & Medicine">
+        <option value="doctor">Doctor / Physician</option>
+        <option value="nurse">Nurse</option>
+        <option value="pharmacist">Pharmacist</option>
+        <option value="dentist">Dentist</option>
+        <option value="surgeon">Surgeon</option>
+        <option value="psychologist">Psychologist / Therapist</option>
+        <option value="physiotherapist">Physiotherapist</option>
+        <option value="veterinarian">Veterinarian</option>
+        <option value="paramedic">Paramedic / EMT</option>
+        <option value="lab_technician">Medical Lab Technician</option>
+      </optgroup>
+
+      <optgroup label="Technology & IT">
+        <option value="software_engineer">Software Engineer / Developer</option>
+        <option value="data_scientist">Data Scientist / Analyst</option>
+        <option value="it_support">IT Support Specialist</option>
+        <option value="cybersecurity">Cybersecurity Analyst</option>
+        <option value="web_developer">Web Developer</option>
+        <option value="network_engineer">Network Engineer</option>
+        <option value="ui_ux_designer">UI/UX Designer</option>
+        <option value="product_manager">Product Manager</option>
+        <option value="ai_ml_engineer">AI / Machine Learning Engineer</option>
+      </optgroup>
+
+      <optgroup label="Engineering & Architecture">
+        <option value="civil_engineer">Civil Engineer</option>
+        <option value="mechanical_engineer">Mechanical Engineer</option>
+        <option value="electrical_engineer">Electrical Engineer</option>
+        <option value="chemical_engineer">Chemical Engineer</option>
+        <option value="architect">Architect</option>
+        <option value="surveyor">Surveyor</option>
+        <option value="industrial_designer">Industrial Designer</option>
+      </optgroup>
+
+      <optgroup label="Business, Finance & Management">
+        <option value="accountant">Accountant</option>
+        <option value="auditor">Auditor</option>
+        <option value="financial_analyst">Financial Analyst</option>
+        <option value="banker">Banker</option>
+        <option value="hr_manager">Human Resources (HR) Manager</option>
+        <option value="business_analyst">Business Analyst</option>
+        <option value="marketing_manager">Marketing Manager</option>
+        <option value="sales_executive">Sales Executive</option>
+        <option value="entrepreneur">Entrepreneur / Business Owner</option>
+        <option value="consultant">Management Consultant</option>
+      </optgroup>
+
+      <optgroup label="Education & Academia">
+        <option value="teacher">School Teacher</option>
+        <option value="professor">University Professor / Lecturer</option>
+        <option value="tutor">Private Tutor</option>
+        <option value="researcher">Academic Researcher</option>
+        <option value="librarian">Librarian</option>
+        <option value="principal">School Principal / Administrator</option>
+      </optgroup>
+
+      <optgroup label="Law & Public Policy">
+        <option value="lawyer">Lawyer / Advocate</option>
+        <option value="judge">Judge / Magistrate</option>
+        <option value="paralegal">Paralegal</option>
+        <option value="civil_servant">Civil Servant / Government Officer</option>
+        <option value="police_officer">Police Officer</option>
+        <option value="military">Military / Armed Forces Personnel</option>
+        <option value="firefighter">Firefighter</option>
+      </optgroup>
+
+      <optgroup label="Arts, Media & Entertainment">
+        <option value="graphic_designer">Graphic Designer</option>
+        <option value="journalist">Journalist / Reporter</option>
+        <option value="writer">Writer / Author / Editor</option>
+        <option value="photographer">Photographer / Videographer</option>
+        <option value="actor">Actor / Performer</option>
+        <option value="musician">Musician / Singer</option>
+        <option value="fashion_designer">Fashion Designer</option>
+        <option value="content_creator">Content Creator / Influencer</option>
+      </optgroup>
+
+      <optgroup label="Science & Environment">
+        <option value="scientist">Scientist</option>
+        <option value="biologist">Biologist</option>
+        <option value="chemist">Chemist</option>
+        <option value="physicist">Physicist</option>
+        <option value="environmental_scientist">Environmental Scientist</option>
+        <option value="geologist">Geologist</option>
+      </optgroup>
+
+      <optgroup label="Hospitality, Tourism & Service">
+        <option value="chef">Chef / Cook</option>
+        <option value="hotel_manager">Hotel Manager</option>
+        <option value="flight_attendant">Flight Attendant</option>
+        <option value="pilot">Pilot</option>
+        <option value="travel_agent">Travel Agent / Tour Guide</option>
+        <option value="customer_service">Customer Service Representative</option>
+        <option value="retail_worker">Retail Salesperson</option>
+      </optgroup>
+
+      <optgroup label="Skilled Trades & Construction">
+        <option value="electrician">Electrician</option>
+        <option value="plumber">Plumber</option>
+        <option value="carpenter">Carpenter</option>
+        <option value="mechanic">Automotive Mechanic</option>
+        <option value="welder">Welder</option>
+        <option value="construction_worker">Construction Worker</option>
+        <option value="driver">Driver / Chauffeur</option>
+        <option value="farmer">Farmer / Agriculturist</option>
+      </optgroup>
+
+      <optgroup label="Other">
+        <option value="student">Student</option>
+        <option value="homemaker">Homemaker</option>
+        <option value="freelancer">Freelancer</option>
+        <option value="retired">Retired</option>
+        <option value="unemployed">Unemployed</option>
+        <option value="other">Other</option>
+      </optgroup>
+      </select>
     </>
   )}
 
   {/* COMMON CONTACT FIELD */}
-  <label htmlFor="contact">Contact Number</label>
+  <label htmlFor="contact">Contact Number<span>*</span></label>
   <input
     id="contact"
     name="contact"
@@ -234,24 +432,42 @@ if (loggedIn) {
         placeholder="Enter your email"
         value={user.email}
         onChange={handleChange}
-        required
+        
       />
 
-      <label htmlFor="address">Address</label>
+      <label htmlFor="address">
+        Service Location<span>*</span>
+      </label>
+
+      {/* Google Maps autocomplete */}
+      <div ref={locationRef}></div>
+
+      {/* Manual location entry */}
+      {/* <p>OR</p>
       <input
         id="address"
         name="address"
         type="text"
-        placeholder="Enter your address"
+        placeholder="Enter your service location manually"
         value={user.address}
         onChange={handleChange}
         required
-      />
+      /> */}
+
+     
+
+      {/* <button
+        type="button"
+        onClick={getCurrentLocation}
+        className="location-button"
+      >
+        📍 Get Current Location
+      </button> */}
     </>
   )}
 
   {/* COMMON PASSWORD FIELD */}
-  <label htmlFor="password">Password</label>
+  <label htmlFor="password">Password<span>*</span></label>
   <input
     id="password"
     name="password"
