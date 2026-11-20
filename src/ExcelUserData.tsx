@@ -1,16 +1,27 @@
 import { useEffect, useState } from "react";
+import "./App.css";
+import contactLinkLogo from "./assets/images/Contact_Link_Logo.png";
 
 type RowData = Record<string, string | number | boolean | null | undefined>;
 
 type ExcelDataProps = {
-  userContact: string;
-  userName: string;
+  user: {
+    name: string;
+    profession: string;
+    contact: string;
+    email: string;
+    address: string;
+    password: string;
+  };
+  onLogout: () => void;
 };
 
 const API_URL =
   "https://script.google.com/macros/s/AKfycbz31F1mGIE_8SfDKiNcPy0fslv8qB7ZViq0jZsneiqRVbjqXXVLvYDNx-FHlUvaz3Y2pg/exec";
 
-function ExcelData({ userContact , userName }: ExcelDataProps) {
+function ExcelData({ user, onLogout }: ExcelDataProps) {
+  const userContact = user.contact;
+  const userName = user.name;
   const [filterType, setFilterType] = useState<"my" | "all">("my");
   const [rows, setRows] = useState<RowData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -19,6 +30,8 @@ function ExcelData({ userContact , userName }: ExcelDataProps) {
   const [editRow, setEditRow] = useState<RowData>({});
   const [isAdding, setIsAdding] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [searchProfession, setSearchProfession] = useState("");
+  const [showAddPopup, setShowAddPopup] = useState(false);
 
   // Find the contact column regardless of capitalization.
 // const getContactHeader = (row: RowData) =>
@@ -39,19 +52,41 @@ const getOwnerHeader = (row: RowData) =>
 const filteredRows = rows
   .map((row, originalIndex) => ({ row, originalIndex }))
   .filter(({ row }) => {
-    if (filterType === "all") return true;
+    // My Contacts / All Contacts filter
+    if (filterType === "my") {
+      const ownerHeader = getOwnerHeader(row);
 
-    const ownerHeader = getOwnerHeader(row);
+      if (!ownerHeader) return false;
 
-    if (!ownerHeader) return false;
+      const addedBy = String(row[ownerHeader] ?? "").trim();
+      const contact = String(userContact ?? "").trim();
 
-    const addedBy = String(row[ownerHeader] ?? "").trim();
-    const contact = String(userContact ?? "").trim();
+      if (
+        addedBy !== contact &&
+        !addedBy.endsWith(`(${contact})`)
+      ) {
+        return false;
+      }
+    }
 
-    return (
-      addedBy === contact ||
-      addedBy.endsWith(`(${contact})`)
-    );
+    // Profession filter
+    if (searchProfession) {
+      const professionHeader = Object.keys(row).find(
+        (header) => header.trim().toLowerCase() === "profession"
+      );
+
+      if (!professionHeader) return false;
+
+      const profession = String(row[professionHeader] ?? "")
+        .trim()
+        .toLowerCase();
+
+      if (!profession.includes(searchProfession.toLowerCase())) {
+        return false;
+      }
+    }
+
+    return true;
   });
 
 
@@ -114,6 +149,7 @@ const handleAdd = () => {
   setEditRow(newRow);
   setEditingIndex(null);
   setIsAdding(true);
+  setShowAddPopup(true);
 };
 
   const handleEdit = (originalIndex: number) => {
@@ -176,6 +212,7 @@ const handleAdd = () => {
       setEditingIndex(null);
       setEditRow({});
       setIsAdding(false);
+      setShowAddPopup(false);
     } catch (err) {
       setError(
         err instanceof Error
@@ -187,12 +224,13 @@ const handleAdd = () => {
     }
   };
 
-  const handleCancel = () => {
-    setEditingIndex(null);
-    setEditRow({});
-    setIsAdding(false);
-    setError("");
-  };
+const handleCancel = () => {
+  setEditingIndex(null);
+  setEditRow({});
+  setIsAdding(false);
+  setShowAddPopup(false);
+  setError("");
+};
 
   const handleDelete = async (originalIndex: number) => {
     if (saving) return;
@@ -254,184 +292,338 @@ const handleAdd = () => {
 
   if (loading) return <p>Loading spreadsheet data...</p>;
 
-  return (
-    <div style={{ padding: "20px", overflowX: "auto" }}>
-      <h1 style={{ textAlign: "center" }}>User Data</h1>
+return (
+  <div className="contacts-dashboard">
 
-      {error && (
-        <p style={{ color: "red" }} role="alert">
-          {error}
-        </p>
-      )}
+    {/* Page heading */}
+{/* Top header: Logo and Logout */}
+<div className="welcome-header">
+  <div className="dashboard-brand">
+    <img
+      src={contactLinkLogo}
+      alt="Contact Link"
+      className="brand-logo dashboard-logo"
+    />
+  </div>
 
-      <div style={{ marginBottom: "15px" }}>
+  <button className="logout-btn" onClick={onLogout}>
+    <span>↪</span> Logout
+  </button>
+</div>
+
+{/* Welcome section and Add Contact button */}
+<div className="dashboard-welcome-row">
+  <div className="profile-info">
+    <div className="user-avatar">
+      {user.name?.charAt(0).toUpperCase() || "U"}
+    </div>
+
+    <div className="welcome-text">
+      <span>Welcome back!</span>
+      <h2>{user.name}</h2>
+    </div>
+
+    <details className="profile-dropdown">
+      <summary>
+        My Profile <span className="dropdown-arrow">⌄</span>
+      </summary>
+
+      <div className="profile-card">
+        <div className="profile-card-heading">
+          <div className="user-avatar small">
+            {user.name?.charAt(0).toUpperCase() || "U"}
+          </div>
+
+          <div>
+            <h3>{user.name}</h3>
+            <span>{user.profession || "Member"}</span>
+          </div>
+        </div>
+
+        <hr />
+
+        <p><strong>Contact:</strong> {user.contact}</p>
+        <p><strong>Email:</strong> {user.email || "—"}</p>
+        <p><strong>Profession:</strong> {user.profession || "—"}</p>
+        <p><strong>Service Location:</strong> {user.address || "—"}</p>
+      </div>
+    </details>
+  </div>
+
+  <button
+    className="add-contact-btn"
+    onClick={handleAdd}
+    disabled={isAdding || editingIndex !== null || saving}
+  >
+    + Add Contact
+  </button>
+</div>
+
+    {error && (
+      <p className="error-message" role="alert">
+        {error}
+      </p>
+    )}
+
+    {/* Filters and search */}
+    <div className="contacts-toolbar">
+      <div className="filter-buttons">
         <button
-          style={{
-            ...buttonStyle,
-            backgroundColor: filterType === "my" ? "#2563eb" : "#ddd",
-            color: filterType === "my" ? "white" : "black",
-          }}
+          className={filterType === "my" ? "filter-btn active" : "filter-btn"}
           onClick={() => setFilterType("my")}
         >
           My Contacts
         </button>
 
         <button
-          style={{
-            ...buttonStyle,
-            backgroundColor: filterType === "all" ? "#2563eb" : "#ddd",
-            color: filterType === "all" ? "white" : "black",
-          }}
+          className={filterType === "all" ? "filter-btn active" : "filter-btn"}
           onClick={() => setFilterType("all")}
         >
           All Contacts
         </button>
       </div>
 
-      <button
-        style={{
-          ...buttonStyle,
-          marginBottom: "12px",
-          backgroundColor: "green",
-          color: "white",
-          border: "none",
-        }}
-        onClick={handleAdd}
-        disabled={isAdding || editingIndex !== null || saving}
-      >
-        + Add Row
-      </button>
+      <div className="profession-search">
+        <input
+          type="text"
+          placeholder="Search by profession..."
+          value={searchProfession}
+          onChange={(event) => setSearchProfession(event.target.value)}
+        />
 
-      {rows.length === 0 ? (
-        <p>
-          No data found. Make sure your Google Sheet has column headers and
-          your API returns the expected data.
-        </p>
-      ) : (
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            textAlign: "left",
-          }}
-        >
-          <thead>
-            <tr>
-              {headers.map((header) => (
-                <th
-                  key={header}
-                  style={{
-                    border: "1px solid #ccc",
-                    padding: "10px",
-                    backgroundColor: "#eee",
-                  }}
-                >
-                  {header}
-                </th>
-              ))}
-              <th style={{ border: "1px solid #ccc", padding: "10px" }}>
-                Actions
-              </th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {isAdding && (
-              <tr>
-                {headers.map((header) => (
-                  <td
-                    key={header}
-                    style={{ border: "1px solid #ccc", padding: "8px" }}
-                  >
-                    <input
-                      value={String(editRow[header] ?? "")}
-                      onChange={(event) =>
-                        handleChange(header, event.target.value)
-                      }
-                      style={{ width: "100%", boxSizing: "border-box" }}
-                    />
-                  </td>
-                ))}
-                <td style={{ border: "1px solid #ccc", padding: "8px" }}>
-                  <button onClick={handleSave} disabled={saving}>
-                    {saving ? "Saving..." : "Save"}
-                  </button>
-                  <button onClick={handleCancel} disabled={saving}>
-                    Cancel
-                  </button>
-                </td>
-              </tr>
-            )}
-
-            {filteredRows.map(({ row, originalIndex }) => (
-              <tr key={originalIndex}>
-                {headers.map((header) => (
-                  <td
-                    key={header}
-                    style={{ border: "1px solid #ccc", padding: "8px" }}
-                  >
-                    {editingIndex === originalIndex ? (
-                      <input
-                        value={String(editRow[header] ?? "")}
-                        onChange={(event) =>
-                          handleChange(header, event.target.value)
-                        }
-                        style={{ width: "100%", boxSizing: "border-box" }}
-                      />
-                    ) : (
-                      header.trim().toLowerCase().replace(/\s+/g, "") === "addedby"
-                        ? String(row[header] ?? "")
-                        : row[header] ?? ""
-                      
-                    )}
-                  </td>
-                ))}
-
-                <td style={{ border: "1px solid #ccc", padding: "8px" }}>
-                  {editingIndex === originalIndex ? (
-                    <>
-                      <button onClick={handleSave} disabled={saving}>
-                        {saving ? "Saving..." : "Save"}
-                      </button>
-                      <button onClick={handleCancel} disabled={saving}>
-                        Cancel
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => handleEdit(originalIndex)}
-                        disabled={isAdding || saving}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(originalIndex)}
-                        disabled={isAdding || saving}
-                      >
-                        Delete
-                      </button>
-                    </>
-                  )}
-                </td>
-              </tr>
-            ))}
-
-            {!isAdding && filteredRows.length === 0 && (
-              <tr>
-                <td
-                  colSpan={headers.length + 1}
-                  style={{ padding: "12px", textAlign: "center" }}
-                >
-                  No contacts found for this filter.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      )}
+        {searchProfession && (
+          <button
+            type="button"
+            className="clear-search"
+            onClick={() => setSearchProfession("")}
+          >
+            Clear
+          </button>
+        )}
+      </div>
     </div>
-  );
+
+    {/* Contact cards */}
+    {rows.length === 0 ? (
+      <div className="empty-state">
+        <h3>No contacts available</h3>
+        <p>Check your Google Sheet or add a contact.</p>
+      </div>
+    ) : filteredRows.length === 0 ? (
+      <div className="empty-state">
+        <h3>No contacts found</h3>
+        <p>Try changing your filter or profession search.</p>
+      </div>
+    ) : (
+      <div className="contacts-card-grid">
+        {filteredRows.map(({ row, originalIndex }) => {
+          const professionHeader = headers.find(
+            (header) => header.trim().toLowerCase() === "profession"
+          );
+
+          const nameHeader = headers.find(
+            (header) => header.trim().toLowerCase() === "name"
+          );
+
+          const contactName = nameHeader
+            ? String(row[nameHeader] ?? "Unknown User")
+            : "Contact";
+
+          const profession = professionHeader
+            ? String(row[professionHeader] ?? "Professional")
+            : "Professional";
+
+          return (
+            <div className="contact-card" key={originalIndex}>
+              <div className="contact-card-header">
+                <div className="contact-avatar">
+                  {contactName.charAt(0).toUpperCase()}
+                </div>
+
+                <div className="contact-card-title">
+                  <h3>{contactName}</h3>
+                  <span>{profession.replace(/_/g, " ")}</span>
+                </div>
+              </div>
+
+
+              <div className="contact-card-details">
+                {headers
+.filter((header) => {
+  const normalizedHeader = header
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "");
+
+  // Hide Name and Profession in both tabs
+  if (
+    normalizedHeader === "name" ||
+    normalizedHeader === "profession"
+  ) {
+    return false;
+  }
+
+  // Hide AddedBy only in My Contacts
+  if (filterType === "my" && normalizedHeader === "addedby") {
+    return false;
+  }
+
+  return true;
+})
+                  .map((header) => (
+                    <div className="contact-detail" key={header}>
+                      <label>{header}</label>
+
+                      {editingIndex === originalIndex ? (
+                        <input
+                          className="card-input"
+                          value={String(editRow[header] ?? "")}
+                          onChange={(event) =>
+                            handleChange(header, event.target.value)
+                          }
+                        />
+                      ) : (
+                        
+                      <span>
+                        {header.trim().toLowerCase().replace(/\s+/g, "") === "addedby"
+                          ? (() => {
+                              const addedBy = String(row[header] ?? "").trim();
+                              const currentUser = `${userName} (${userContact})`;
+
+                              return addedBy.toLowerCase() === currentUser.toLowerCase()
+                                ? "You"
+                                : addedBy || "—";
+                            })()
+                          : String(row[header] ?? "—") || "—"}
+                      </span>
+
+                      )}
+                    </div>
+                  ))}
+              </div>
+
+
+              <div className="contact-card-actions">
+                {editingIndex === originalIndex ? (
+                  <>
+                    <button
+                      className="action-btn save-btn"
+                      onClick={handleSave}
+                      disabled={saving}
+                    >
+                      {saving ? "Saving..." : "Save"}
+                    </button>
+
+                    <button
+                      className="action-btn cancel-btn"
+                      onClick={handleCancel}
+                      disabled={saving}
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      className="action-btn edit-btn"
+                      onClick={() => handleEdit(originalIndex)}
+                      disabled={isAdding || saving}
+                    >
+                      Edit
+                    </button>
+
+                    <button
+                      className="action-btn delete-btn"
+                      onClick={() => handleDelete(originalIndex)}
+                      disabled={isAdding || saving}
+                    >
+                      Delete
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    )}
+
+    {/* Add Contact Popup */}
+    {showAddPopup && (
+      <div
+        className="popup-overlay"
+        onClick={(event) => {
+          if (event.target === event.currentTarget && !saving) {
+            handleCancel();
+          }
+        }}
+      >
+        <div
+          className="add-contact-popup"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="add-contact-title"
+        >
+          <div className="popup-header">
+            <div>
+              <h2 id="add-contact-title">Add New Contact</h2>
+              <p>Enter professional contact details</p>
+            </div>
+
+            <button
+              className="popup-close"
+              type="button"
+              onClick={handleCancel}
+              disabled={saving}
+              aria-label="Close popup"
+            >
+              ×
+            </button>
+          </div>
+
+          <div className="popup-form">
+            {headers.map((header) => (
+              <div className="popup-field" key={header}>
+                <label>{header}</label>
+                <input
+                  type="text"
+                  value={String(editRow[header] ?? "")}
+                  onChange={(event) =>
+                    handleChange(header, event.target.value)
+                  }
+                  placeholder={`Enter ${header}`}
+                  disabled={
+                    header.trim().toLowerCase().replace(/\s+/g, "") ===
+                    "addedby"
+                  }
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="popup-actions">
+            <button
+              className="action-btn cancel-btn"
+              onClick={handleCancel}
+              disabled={saving}
+            >
+              Cancel
+            </button>
+
+            <button
+              className="action-btn save-btn"
+              onClick={handleSave}
+              disabled={saving}
+            >
+              {saving ? "Saving..." : "Save Contact"}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+  </div>
+);
 }
 
 export default ExcelData;

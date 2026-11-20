@@ -168,3 +168,90 @@
     flex-direction: column;
   }
 }
+
+/* Contact Link branding — add to App.css and ExcelUserData.css, or import this file in both components */
+
+.brand-logo {
+  display: block;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.auth-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0 auto 14px;
+}
+
+.auth-logo {
+  width: min(190px, 65%);
+  max-height: 100px;
+}
+
+.brand-tagline {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.88rem;
+  letter-spacing: 0.04em;
+}
+
+.dashboard-brand {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.dashboard-logo {
+  width: 150px;
+  max-height: 64px;
+}
+
+.contacts-brand-title {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+}
+
+.directory-logo {
+  width: 130px;
+  max-height: 70px;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 700px) {
+  .dashboard-logo {
+    width: 112px;
+    max-height: 52px;
+  }
+
+  .directory-logo {
+    width: 96px;
+    max-height: 58px;
+  }
+
+  .contacts-brand-title {
+    gap: 10px;
+  }
+
+  .contacts-heading {
+    align-items: flex-start;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 440px) {
+  .contacts-brand-title {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .directory-logo {
+    width: 112px;
+  }
+}

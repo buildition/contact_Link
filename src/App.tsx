@@ -1,9 +1,10 @@
 /// <reference types="google.maps" />
 
 import { useState, useEffect, useRef } from "react";
-import "./App.css";
+import "./ExcelUserData.css";
 import ExcelData from "./ExcelUserData";
 import { setOptions } from "@googlemaps/js-api-loader";
+import contactLinkLogo from "./assets/images/Contact_Link_Logo.png";
 
 type User = {
   name: string;
@@ -241,29 +242,10 @@ const handleLogin = async (
 
 if (loggedIn) {
   return (
-    <div>
-      <header className="welcome-header">
-        <div className="profile-info">
-          <h2>Welcome, {user.name}!</h2>
-
-          <details className="profile-dropdown">
-            <summary>My Profile</summary>
-
-            <div className="profile-card">
-              <p><strong>Name:</strong> {user.name}</p>
-              <p><strong>Profession:</strong> {user.profession || "—"}</p>
-              <p><strong>Contact:</strong> {user.contact}</p>
-              <p><strong>Email:</strong> {user.email || "—"}</p>
-              <p><strong>Address:</strong> {user.address || "—"}</p>
-            </div>
-          </details>
-        </div>
-
-        <button onClick={handleLogout}>Logout</button>
-      </header>
-
-      <ExcelData userContact={user.contact} userName={user.name} />
-    </div>
+    <ExcelData
+      user={user}
+      onLogout={handleLogout}
+    />
   );
 }
 
@@ -275,7 +257,10 @@ if (loggedIn) {
   className="auth-form"
   onSubmit={isSignup ? handleSignup : handleLogin}
 >
-  <h1>Contact Link</h1>
+  <div className="auth-brand">
+    <img src={contactLinkLogo} alt="Contact Link" className="brand-logo auth-logo" />
+    {/* <p className="brand-tagline">Connect. Share. Grow.</p> */}
+  </div>
   <h2>{isSignup ? "Create Account" : "Login"}</h2>
 
   {message && <p className="message">{message}</p>}
@@ -307,7 +292,7 @@ if (loggedIn) {
         }
         required
       >
-      <option value="" disabled>-- Select a Profession --</option>
+      <option value="" disabled>Select Your Profession</option>
 
       <optgroup label="Healthcare & Medicine">
         <option value="doctor">Doctor / Physician</option>
