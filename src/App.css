@@ -1,6 +1,9 @@
 * {
   box-sizing: border-box;
 }
+body {
+    margin: 0px;
+}
 
 .auth-container {
   min-height: 100vh;
@@ -253,5 +256,69 @@
 
   .directory-logo {
     width: 112px;
+  }
+}
+
+.contact-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  cursor: pointer;
+  list-style: none;
+  background: #f3f4f6;
+}
+
+.contact-card-header::-webkit-details-marker {
+  display: none;
+}
+
+.contact-card-header::marker {
+  content: "";
+}
+
+/* Center location */
+.contact-location {
+  flex: 1;
+  text-align: center;
+  font-size: 13px;
+  color: #666;
+}
+
+/* View / Close text */
+.card-toggle-text {
+  min-width: 55px;
+  text-align: right;
+  color: #315a9c;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.close-text {
+  display: none;
+}
+
+.contact-card[open] .view-text {
+  display: none;
+}
+
+.contact-card[open] .close-text {
+  display: inline;
+}
+
+/* Mobile responsive */
+@media (max-width: 480px) {
+  .contact-card-header {
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .contact-location {
+    font-size: 11px;
+  }
+
+  .card-toggle-text {
+    min-width: 40px;
+    font-size: 12px;
   }
 }

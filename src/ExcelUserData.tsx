@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import "./App.css";
 import contactLinkLogo from "./assets/images/Contact_Link_Logo.png";
 
@@ -9,7 +9,7 @@ type ExcelDataProps = {
     name: string;
     profession: string;
     contact: string;
-    email: string;
+    // email: string;
     address: string;
     password: string;
   };
@@ -32,6 +32,159 @@ function ExcelData({ user, onLogout }: ExcelDataProps) {
   const [saving, setSaving] = useState(false);
   const [searchProfession, setSearchProfession] = useState("");
   const [showAddPopup, setShowAddPopup] = useState(false);
+  const locationRef = useRef<HTMLDivElement>(null);
+
+  const professionGroups = [
+    {
+      label: "Healthcare & Medicine",
+      options: [
+        ["doctor", "Doctor / Physician"],
+        ["nurse", "Nurse"],
+        ["pharmacist", "Pharmacist"],
+        ["dentist", "Dentist"],
+        ["surgeon", "Surgeon"],
+        ["psychologist", "Psychologist / Therapist"],
+        ["physiotherapist", "Physiotherapist"],
+        ["veterinarian", "Veterinarian"],
+        ["paramedic", "Paramedic / EMT"],
+        ["lab_technician", "Medical Lab Technician"],
+      ],
+    },
+    {
+      label: "Technology & IT",
+      options: [
+        ["software_engineer", "Software Engineer / Developer"],
+        ["data_scientist", "Data Scientist / Analyst"],
+        ["it_support", "IT Support Specialist"],
+        ["cybersecurity", "Cybersecurity Analyst"],
+        ["web_developer", "Web Developer"],
+        ["network_engineer", "Network Engineer"],
+        ["ui_ux_designer", "UI/UX Designer"],
+        ["product_manager", "Product Manager"],
+        ["ai_ml_engineer", "AI / Machine Learning Engineer"],
+      ],
+    },
+    {
+      label: "Engineering & Architecture",
+      options: [
+        ["civil_engineer", "Civil Engineer"],
+        ["mechanical_engineer", "Mechanical Engineer"],
+        ["electrical_engineer", "Electrical Engineer"],
+        ["chemical_engineer", "Chemical Engineer"],
+        ["architect", "Architect"],
+        ["surveyor", "Surveyor"],
+        ["industrial_designer", "Industrial Designer"],
+      ],
+    },
+    {
+      label: "Business, Finance & Management",
+      options: [
+        ["accountant", "Accountant"],
+        ["auditor", "Auditor"],
+        ["financial_analyst", "Financial Analyst"],
+        ["banker", "Banker"],
+        ["hr_manager", "Human Resources (HR) Manager"],
+        ["business_analyst", "Business Analyst"],
+        ["marketing_manager", "Marketing Manager"],
+        ["sales_executive", "Sales Executive"],
+        ["entrepreneur", "Entrepreneur / Business Owner"],
+        ["consultant", "Management Consultant"],
+      ],
+    },
+    {
+      label: "Education & Academia",
+      options: [
+        ["teacher", "School Teacher"],
+        ["professor", "University Professor / Lecturer"],
+        ["tutor", "Private Tutor"],
+        ["researcher", "Academic Researcher"],
+        ["librarian", "Librarian"],
+        ["principal", "School Principal / Administrator"],
+      ],
+    },
+    {
+      label: "Law & Public Policy",
+      options: [
+        ["lawyer", "Lawyer / Advocate"],
+        ["judge", "Judge / Magistrate"],
+        ["paralegal", "Paralegal"],
+        ["civil_servant", "Civil Servant / Government Officer"],
+        ["police_officer", "Police Officer"],
+        ["military", "Military / Armed Forces Personnel"],
+        ["firefighter", "Firefighter"],
+      ],
+    },
+    {
+      label: "Arts, Media & Entertainment",
+      options: [
+        ["graphic_designer", "Graphic Designer"],
+        ["journalist", "Journalist / Reporter"],
+        ["writer", "Writer / Author / Editor"],
+        ["photographer", "Photographer / Videographer"],
+        ["actor", "Actor / Performer"],
+        ["musician", "Musician / Singer"],
+        ["fashion_designer", "Fashion Designer"],
+        ["content_creator", "Content Creator / Influencer"],
+      ],
+    },
+    {
+      label: "Science & Environment",
+      options: [
+        ["scientist", "Scientist"],
+        ["biologist", "Biologist"],
+        ["chemist", "Chemist"],
+        ["physicist", "Physicist"],
+        ["environmental_scientist", "Environmental Scientist"],
+        ["geologist", "Geologist"],
+      ],
+    },
+    {
+      label: "Hospitality, Tourism & Service",
+      options: [
+        ["chef", "Chef / Cook"],
+        ["hotel_manager", "Hotel Manager"],
+        ["flight_attendant", "Flight Attendant"],
+        ["pilot", "Pilot"],
+        ["travel_agent", "Travel Agent / Tour Guide"],
+        ["customer_service", "Customer Service Representative"],
+        ["retail_worker", "Retail Salesperson"],
+      ],
+    },
+    {
+      label: "Skilled Trades & Construction",
+      options: [
+        ["electrician", "Electrician"],
+        ["plumber", "Plumber"],
+        ["carpenter", "Carpenter"],
+        ["mechanic", "Automotive Mechanic"],
+        ["welder", "Welder"],
+        ["construction_worker", "Construction Worker"],
+        ["driver", "Driver / Chauffeur"],
+        ["farmer", "Farmer / Agriculturist"],
+      ],
+    },
+    {
+      label: "Other",
+      options: [
+        ["student", "Student"],
+        ["homemaker", "Homemaker"],
+        ["freelancer", "Freelancer"],
+        ["retired", "Retired"],
+        ["unemployed", "Unemployed"],
+        ["other", "Other"],
+      ],
+    },
+  ];
+
+const getCityState = (address: string) => {
+  if (!address) return "";
+
+  const parts = address.split(",").map((item) => item.trim());
+
+  // Return only the city name (second-last part)
+  return parts.length >= 2 ? parts[parts.length - 3] : parts[0];
+};
+
 
   // Find the contact column regardless of capitalization.
 // const getContactHeader = (row: RowData) =>
@@ -118,7 +271,78 @@ const filteredRows = rows
     }
 
     fetchExcelData();
+    
   }, []);
+
+useEffect(() => {
+  if (!showAddPopup || !locationRef.current) return;
+
+  let autocomplete:
+    | google.maps.places.PlaceAutocompleteElement
+    | null = null;
+
+  let cancelled = false;
+
+  const initializeAutocomplete = async () => {
+    const { PlaceAutocompleteElement } =
+      (await google.maps.importLibrary(
+        "places"
+      )) as google.maps.PlacesLibrary;
+
+    if (cancelled || !locationRef.current) return;
+
+    autocomplete = new PlaceAutocompleteElement();
+
+    autocomplete.placeholder = "Search your service location...";
+    autocomplete.includedRegionCodes = ["in"];
+
+    autocomplete.addEventListener(
+      "gmp-select",
+      async (event: google.maps.places.PlacePredictionSelectEvent) => {
+        try {
+          const place = event.placePrediction.toPlace();
+
+          await place.fetchFields({
+            fields: ["formattedAddress", "location"],
+          });
+
+          if (place.formattedAddress) {
+            const addressHeader = headers.find((header) => {
+              const normalized = header
+                .trim()
+                .toLowerCase()
+                .replace(/\s+/g, "");
+
+              return (
+                normalized === "address" ||
+                normalized === "servicelocation"
+              );
+            });
+
+            if (addressHeader) {
+              handleChange(addressHeader, place.formattedAddress);
+            }
+          }
+        } catch (error) {
+          console.error("Place selection error:", error);
+          setError("Unable to fetch the selected location.");
+        }
+      }
+    );
+
+    locationRef.current.replaceChildren(autocomplete);
+  };
+
+  initializeAutocomplete().catch((error) => {
+    console.error("Google Maps initialization error:", error);
+    setError("Unable to load Google Maps. Please try again.");
+  });
+
+  return () => {
+    cancelled = true;
+    autocomplete?.remove();
+  };
+}, [showAddPopup]);
 
   const headers = Object.keys(rows[0] ?? editRow);
 
@@ -172,6 +396,29 @@ const handleAdd = () => {
     if (!isAdding && editingIndex === null) return;
 
     setError("");
+    // Validate required fields when adding a new contact
+if (isAdding) {
+  const requiredHeaders = headers.filter((header) => {
+    const normalized = header.trim().toLowerCase().replace(/\s+/g, "");
+
+    return (
+      normalized !== "addedby" &&
+      normalized !== "email" &&
+      normalized !== "emailaddress"
+    );
+  });
+
+  const emptyFields = requiredHeaders.filter(
+    (header) => !String(editRow[header] ?? "").trim()
+  );
+
+  if (emptyFields.length > 0) {
+    setError(
+      `Please fill in all required fields: ${emptyFields.join(", ")}`
+    );
+    return;
+  }
+}
     setSaving(true);
 
     try {
@@ -343,7 +590,7 @@ return (
         <hr />
 
         <p><strong>Contact:</strong> {user.contact}</p>
-        <p><strong>Email:</strong> {user.email || "—"}</p>
+        {/* <p><strong>Email:</strong> {user.email || "—"}</p> */}
         <p><strong>Profession:</strong> {user.profession || "—"}</p>
         <p><strong>Service Location:</strong> {user.address || "—"}</p>
       </div>
@@ -359,11 +606,11 @@ return (
   </button>
 </div>
 
-    {error && (
+    {/* {error && (
       <p className="error-message" role="alert">
         {error}
       </p>
-    )}
+    )} */}
 
     {/* Filters and search */}
     <div className="contacts-toolbar">
@@ -433,46 +680,96 @@ return (
             ? String(row[professionHeader] ?? "Professional")
             : "Professional";
 
-          return (
-            <div className="contact-card" key={originalIndex}>
-              <div className="contact-card-header">
-                <div className="contact-avatar">
-                  {contactName.charAt(0).toUpperCase()}
-                </div>
+          const addressHeader = headers.find((header) => {
+          const normalized = header.trim().toLowerCase().replace(/\s+/g, "");
 
-                <div className="contact-card-title">
-                  <h3>{contactName}</h3>
-                  <span>{profession.replace(/_/g, " ")}</span>
+          return normalized === "address" || normalized === "servicelocation";
+          });
+
+          const address = addressHeader
+            ? String(row[addressHeader] ?? "")
+            : "";
+
+          const cityState = getCityState(address);
+
+          return (
+  
+          <details className="contact-card">
+            {/* Always-visible clickable header */}
+
+            <summary className="contact-card-header">
+              <div className="contact-avatar">
+                {contactName.charAt(0).toUpperCase()}
+              </div>
+
+              <div className="contact-card-title">
+                <h3>{contactName}</h3>
+
+                <div className="contact-profession-location">
+                  <span className="contact-profession">
+                    {profession.replace(/_/g, " ")}
+                  </span> 
+
+                  <span> | </span>
+                  <span>
+                   {cityState && (
+                    <small className="contact-location">
+                      📍 {cityState}
+                    </small>
+                  )}
+                  </span>
+
                 </div>
               </div>
 
+              <span className="card-toggle-text">
+                <span className="view-text">View</span>
+                <span className="close-text">Hide</span>
+              </span>
+            </summary>
 
+
+            {/* Expandable content */}
+            <div className="contact-card-content">
               <div className="contact-card-details">
                 {headers
-.filter((header) => {
-  const normalizedHeader = header
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "");
+                  .filter((header) => {
+                    const normalizedHeader = header
+                      .trim()
+                      .toLowerCase()
+                      .replace(/\s+/g, "");
 
-  // Hide Name and Profession in both tabs
-  if (
-    normalizedHeader === "name" ||
-    normalizedHeader === "profession"
-  ) {
-    return false;
-  }
+                    if (
+                      normalizedHeader === "name" ||
+                      normalizedHeader === "profession" ||
+                      normalizedHeader === "email" ||
+                      normalizedHeader === "emailaddress"
+                    ) {
+                      return false;
+                    }
 
-  // Hide AddedBy only in My Contacts
-  if (filterType === "my" && normalizedHeader === "addedby") {
-    return false;
-  }
+                    if (filterType === "my" && normalizedHeader === "addedby") {
+                      return false;
+                    }
 
-  return true;
-})
+                    return true;
+                  })
                   .map((header) => (
-                    <div className="contact-detail" key={header}>
-                      <label>{header}</label>
+                                      <div
+                    className={`contact-detail ${
+                      ["contact", "servicelocation", "address", "addedby"].includes(
+                        header.trim().toLowerCase().replace(/\s+/g, "")
+                      )
+                        ? "contact-detail-highlight"
+                        : ""
+                    }`}
+                    key={header}
+                  >
+                      <label>
+                        {header.trim().toLowerCase().replace(/\s+/g, "") === "address"
+                          ? "Service Location"
+                          : header}
+                      </label>
 
                       {editingIndex === originalIndex ? (
                         <input
@@ -483,66 +780,67 @@ return (
                           }
                         />
                       ) : (
-                        
-                      <span>
-                        {header.trim().toLowerCase().replace(/\s+/g, "") === "addedby"
-                          ? (() => {
-                              const addedBy = String(row[header] ?? "").trim();
-                              const currentUser = `${userName} (${userContact})`;
+                        <span>
+                          {header.trim().toLowerCase().replace(/\s+/g, "") === "addedby"
+                            ? (() => {
+                                const addedBy = String(row[header] ?? "").trim();
+                                const currentUser = `${userName} (${userContact})`;
 
-                              return addedBy.toLowerCase() === currentUser.toLowerCase()
-                                ? "You"
-                                : addedBy || "—";
-                            })()
-                          : String(row[header] ?? "—") || "—"}
-                      </span>
-
+                                return addedBy.toLowerCase() === currentUser.toLowerCase()
+                                  ? "You"
+                                  : addedBy || "—";
+                              })()
+                            : String(row[header] ?? "—") || "—"}
+                        </span>
                       )}
                     </div>
                   ))}
               </div>
 
+              {filterType === "my" && (
+                <div className="contact-card-actions">
+                  {editingIndex === originalIndex ? (
+                    <>
+                      <button
+                        className="action-btn save-btn"
+                        onClick={handleSave}
+                        disabled={saving}
+                      >
+                        {saving ? "Saving..." : "Save"}
+                      </button>
 
-              <div className="contact-card-actions">
-                {editingIndex === originalIndex ? (
-                  <>
-                    <button
-                      className="action-btn save-btn"
-                      onClick={handleSave}
-                      disabled={saving}
-                    >
-                      {saving ? "Saving..." : "Save"}
-                    </button>
+                      <button
+                        className="action-btn cancel-btn"
+                        onClick={handleCancel}
+                        disabled={saving}
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        className="action-btn edit-btn"
+                        onClick={() => handleEdit(originalIndex)}
+                        disabled={isAdding || saving}
+                      >
+                        Edit
+                      </button>
 
-                    <button
-                      className="action-btn cancel-btn"
-                      onClick={handleCancel}
-                      disabled={saving}
-                    >
-                      Cancel
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      className="action-btn edit-btn"
-                      onClick={() => handleEdit(originalIndex)}
-                      disabled={isAdding || saving}
-                    >
-                      Edit
-                    </button>
-
-                    <button
-                      className="action-btn delete-btn"
-                      onClick={() => handleDelete(originalIndex)}
-                      disabled={isAdding || saving}
-                    >
-                      Delete
-                    </button>
-                  </>
-                )}
-              </div>
+                      <button
+                        className="action-btn delete-btn"
+                        onClick={() => handleDelete(originalIndex)}
+                        disabled={isAdding || saving}
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
+          </details>
+
           );
         })}
       </div>
@@ -568,6 +866,12 @@ return (
             <div>
               <h2 id="add-contact-title">Add New Contact</h2>
               <p>Enter professional contact details</p>
+
+              {error && (
+                <p className="popup-error-message" role="alert">
+                  {error}
+                </p>
+              )}
             </div>
 
             <button
@@ -582,21 +886,62 @@ return (
           </div>
 
           <div className="popup-form">
-            {headers.map((header) => (
+            {headers
+            .filter((header) => {
+              const normalizedHeader = header
+                .trim()
+                .toLowerCase()
+                .replace(/\s+/g, "");
+
+              return (
+                normalizedHeader !== "email" &&
+                normalizedHeader !== "emailaddress" &&
+                normalizedHeader !== "addedby"
+              );
+            })
+            .map((header) => (
               <div className="popup-field" key={header}>
-                <label>{header}</label>
-                <input
-                  type="text"
-                  value={String(editRow[header] ?? "")}
-                  onChange={(event) =>
-                    handleChange(header, event.target.value)
-                  }
-                  placeholder={`Enter ${header}`}
-                  disabled={
+                <label>
+                  {header} <span className="required-star">*</span>
+                </label>
+                {header.trim().toLowerCase() === "profession" ? (
+                  <select
+                    required
+                    value={String(editRow[header] ?? "")}
+                    onChange={(event) =>
+                      handleChange(header, event.target.value)
+                    }
+                  >
+                    <option value="">Select Your Profession</option>
+
+                    {professionGroups.map((group) => (
+                      <optgroup label={group.label} key={group.label}>
+                        {group.options.map(([value, label]) => (
+                          <option value={value} key={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                  ) : (
                     header.trim().toLowerCase().replace(/\s+/g, "") ===
-                    "addedby"
-                  }
-                />
+                    "address" ||
+                    header.trim().toLowerCase().replace(/\s+/g, "") ===
+                    "servicelocation"
+                  ) ? (
+                    <div ref={locationRef}></div>
+                  ) : (
+                    <input
+                      type="text"
+                      required
+                      value={String(editRow[header] ?? "")}
+                      onChange={(event) =>
+                        handleChange(header, event.target.value)
+                      }
+                      placeholder={`Enter ${header}`}
+                    />
+                  )}
               </div>
             ))}
           </div>

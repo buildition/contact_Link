@@ -10,7 +10,7 @@ type User = {
   name: string;
   profession: string;
   contact: string;
-  email: string;
+  // email: string;
   address: string;
   password: string;
 };
@@ -20,24 +20,58 @@ setOptions({
   v: "weekly",
 });
 
+type StoredUser = Omit<User, "password">;
+
+const STORAGE_KEY = "contactLinkUser";
+
+const getStoredUser = (): StoredUser | null => {
+  try {
+    const savedUser = localStorage.getItem(STORAGE_KEY);
+
+    if (!savedUser) return null;
+
+    const parsedUser = JSON.parse(savedUser);
+
+    if (!parsedUser.contact) return null;
+
+    return {
+      name: parsedUser.name || "",
+      profession: parsedUser.profession || "",
+      contact: parsedUser.contact,
+      address: parsedUser.address || "",
+    };
+  } catch {
+    return null;
+  }
+};
+
 function App() {
 
-  const API_URL = "https://script.google.com/macros/s/AKfycbz31F1mGIE_8SfDKiNcPy0fslv8qB7ZViq0jZsneiqRVbjqXXVLvYDNx-FHlUvaz3Y2pg/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbz31F1mGIE_8SfDKiNcPy0fslv8qB7ZViq0jZsneiqRVbjqXXVLvYDNx-FHlUvaz3Y2pg/exec";
 
 const locationRef = useRef<HTMLDivElement>(null);
 const [isSignup, setIsSignup] = useState(true);
 
-const [user, setUser] = useState<User>({
-  name: "",
-  profession: "",
-  contact: "",
-  email: "",
-  address: "",
-  password: "",
+const [user, setUser] = useState<User>(() => {
+  const savedUser = getStoredUser();
+
+  return savedUser
+    ? { ...savedUser, password: "" }
+    : {
+        name: "",
+        profession: "",
+        contact: "",
+        address: "",
+        password: "",
+      };
 });
 
-const [loggedIn, setLoggedIn] = useState(false);
+const [loggedIn, setLoggedIn] = useState(
+  () => getStoredUser() !== null
+);
 const [message, setMessage] = useState("");
+
+
 
 
 useEffect(() => {
@@ -164,7 +198,7 @@ const handleSignup = async (
       name: "",
       profession: "",
       contact: "",
-      email: "",
+      // email: "",
       address: "",
       password: "",
     });
@@ -213,10 +247,29 @@ const handleLogin = async (
       name: result.user.name || "",
       profession: result.user.profession || "",
       contact: result.user.contact || "",
-      email: result.user.email || "",
+      // email: result.user.email || "",
       address: result.user.address || "",
       password: "",
     }));
+
+    const loggedInUser: StoredUser = {
+      name: result.user.name || "",
+      profession: result.user.profession || "",
+      contact: result.user.contact || "",
+      address: result.user.address || "",
+    };
+
+    // Save user profile in localStorage
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(loggedInUser)
+    );
+
+    // Update React state
+    setUser({
+      ...loggedInUser,
+      password: "",
+    });
 
     setLoggedIn(true);
     setMessage("");
@@ -228,16 +281,26 @@ const handleLogin = async (
 
 
 
-  const handleLogout = () => {
-    setLoggedIn(false);
-    setIsSignup(false);
-    setUser({     name: "",
+const handleLogout = () => {
+
+  // Clear saved login session
+  localStorage.removeItem(STORAGE_KEY);
+
+  // Reset login state
+  setLoggedIn(false);
+  setIsSignup(false);
+
+  // Reset user details
+  setUser({
+    name: "",
     profession: "",
     contact: "",
-    email: "",
     address: "",
-    password: "", });
-  };
+    password: "",
+  });
+
+  setMessage("");
+};
 
 
 if (loggedIn) {
@@ -432,7 +495,7 @@ if (loggedIn) {
   {/* SIGNUP EMAIL AND ADDRESS */}
   {isSignup && (
     <>
-      <label htmlFor="email">Email</label>
+      {/* <label htmlFor="email">Email</label>
       <input
         id="email"
         name="email"
@@ -441,7 +504,7 @@ if (loggedIn) {
         value={user.email}
         onChange={handleChange}
         
-      />
+      /> */}
 
       <label htmlFor="address">
         Service Location<span>*</span>
