@@ -569,7 +569,7 @@ if (loggedIn) {
           name: "",
           profession: "",
           contact: "",
-          email: "",
+          // email: "",
           address: "",
           password: "",
         });

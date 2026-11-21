@@ -531,11 +531,11 @@ const handleCancel = () => {
     }
   };
 
-  const buttonStyle = {
-    padding: "7px 12px",
-    margin: "3px",
-    cursor: "pointer",
-  } as const;
+  // const buttonStyle = {
+  //   padding: "7px 12px",
+  //   margin: "3px",
+  //   cursor: "pointer",
+  // } as const;
 
   if (loading) return <p>Loading spreadsheet data...</p>;
 
