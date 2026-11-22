@@ -74,8 +74,15 @@ const [message, setMessage] = useState("");
 
 
 
+
 useEffect(() => {
-  let autocomplete: google.maps.places.PlaceAutocompleteElement | null = null;
+  // Initialize autocomplete only on the signup form
+  if (loggedIn || !isSignup || !locationRef.current) return;
+
+  let autocomplete:
+    | google.maps.places.PlaceAutocompleteElement
+    | null = null;
+
   let cancelled = false;
 
   const initializeAutocomplete = async () => {
@@ -124,7 +131,8 @@ useEffect(() => {
     cancelled = true;
     autocomplete?.remove();
   };
-}, []);
+}, [loggedIn, isSignup]);
+
 
 
 
@@ -302,12 +310,39 @@ const handleLogout = () => {
   setMessage("");
 };
 
+const handleUpdateUser = (updatedDetails: {
+  name: string;
+  profession: string;
+  contact: string;
+  address: string;
+}) => {
+  setUser((prevUser) => {
+    const updatedUser = {
+      ...prevUser,
+      ...updatedDetails,
+    };
+
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        name: updatedUser.name,
+        profession: updatedUser.profession,
+        contact: updatedUser.contact,
+        address: updatedUser.address,
+      })
+    );
+
+    return updatedUser;
+  });
+};
+
 
 if (loggedIn) {
   return (
     <ExcelData
       user={user}
       onLogout={handleLogout}
+      onUpdateUser={handleUpdateUser}
     />
   );
 }

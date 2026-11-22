@@ -9,17 +9,22 @@ type ExcelDataProps = {
     name: string;
     profession: string;
     contact: string;
-    // email: string;
     address: string;
     password: string;
   };
   onLogout: () => void;
+  onUpdateUser: (updatedDetails: {
+    name: string;
+    profession: string;
+    contact: string;
+    address: string;
+  }) => void;
 };
 
 const API_URL =
   "https://script.google.com/macros/s/AKfycbz31F1mGIE_8SfDKiNcPy0fslv8qB7ZViq0jZsneiqRVbjqXXVLvYDNx-FHlUvaz3Y2pg/exec";
 
-function ExcelData({ user, onLogout }: ExcelDataProps) {
+function ExcelData({ user, onLogout, onUpdateUser }: ExcelDataProps) {
   const userContact = user.contact;
   const userName = user.name;
   const [filterType, setFilterType] = useState<"my" | "all">("my");
@@ -33,6 +38,7 @@ function ExcelData({ user, onLogout }: ExcelDataProps) {
   const [searchProfession, setSearchProfession] = useState("");
   const [showAddPopup, setShowAddPopup] = useState(false);
   const locationRef = useRef<HTMLDivElement>(null);
+  const editProfileLocationRef = useRef<HTMLDivElement>(null);
 
   const professionGroups = [
     {
@@ -175,6 +181,31 @@ function ExcelData({ user, onLogout }: ExcelDataProps) {
       ],
     },
   ];
+
+  const [showEditProfile, setShowEditProfile] = useState(false);
+
+const [editProfile, setEditProfile] = useState({
+  name: user.name || "",
+  profession: user.profession || "",
+  contact: user.contact || "",
+  address: user.address || "",
+});
+
+const handleProfileChange = (
+  e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+) => {
+  const { name, value } = e.target;
+
+  setEditProfile((prev) => ({
+    ...prev,
+    [name]: value,
+  }));
+};
+
+const handleSaveProfile = () => {
+  onUpdateUser(editProfile);
+  setShowEditProfile(false);
+};
 
 const getCityState = (address: string) => {
   if (!address) return "";
@@ -344,6 +375,63 @@ useEffect(() => {
   };
 }, [showAddPopup]);
 
+useEffect(() => {
+  if (!showEditProfile || !editProfileLocationRef.current) return;
+
+  let autocomplete:
+    | google.maps.places.PlaceAutocompleteElement
+    | null = null;
+
+  let cancelled = false;
+
+  const initializeAutocomplete = async () => {
+    const { PlaceAutocompleteElement } =
+      (await google.maps.importLibrary(
+        "places"
+      )) as google.maps.PlacesLibrary;
+
+    if (cancelled || !editProfileLocationRef.current) return;
+
+    autocomplete = new PlaceAutocompleteElement();
+
+    autocomplete.placeholder = "Search your service location...";
+    autocomplete.includedRegionCodes = ["in"];
+
+    autocomplete.addEventListener(
+      "gmp-select",
+      async (event: google.maps.places.PlacePredictionSelectEvent) => {
+        try {
+          const place = event.placePrediction.toPlace();
+
+          await place.fetchFields({
+            fields: ["formattedAddress", "location"],
+          });
+
+          if (place.formattedAddress) {
+            setEditProfile((prev) => ({
+              ...prev,
+              address: place.formattedAddress!,
+            }));
+          }
+        } catch (error) {
+          console.error("Profile location selection error:", error);
+        }
+      }
+    );
+
+    editProfileLocationRef.current.replaceChildren(autocomplete);
+  };
+
+  initializeAutocomplete().catch((error) => {
+    console.error("Google Places initialization error:", error);
+  });
+
+  return () => {
+    cancelled = true;
+    autocomplete?.remove();
+  };
+}, [showEditProfile]);
+
   const headers = Object.keys(rows[0] ?? editRow);
 
 const handleAdd = () => {
@@ -376,12 +464,15 @@ const handleAdd = () => {
   setShowAddPopup(true);
 };
 
-  const handleEdit = (originalIndex: number) => {
-    setError("");
-    setEditingIndex(originalIndex);
-    setEditRow({ ...rows[originalIndex] });
-    setIsAdding(false);
-  };
+
+const handleEdit = (originalIndex: number) => {
+  setError("");
+  setEditingIndex(originalIndex);
+  setEditRow({ ...rows[originalIndex] });
+  setIsAdding(false);
+  setShowAddPopup(true);
+};
+
 
   const handleChange = (header: string, value: string) => {
     setEditRow((previous) => ({
@@ -398,26 +489,28 @@ const handleAdd = () => {
     setError("");
     // Validate required fields when adding a new contact
 if (isAdding) {
-  const requiredHeaders = headers.filter((header) => {
-    const normalized = header.trim().toLowerCase().replace(/\s+/g, "");
 
-    return (
-      normalized !== "addedby" &&
-      normalized !== "email" &&
-      normalized !== "emailaddress"
-    );
-  });
+const requiredHeaders = headers.filter((header) => {
+  const normalized = header.trim().toLowerCase().replace(/\s+/g, "");
 
-  const emptyFields = requiredHeaders.filter(
-    (header) => !String(editRow[header] ?? "").trim()
+  return (
+    normalized !== "addedby" &&
+    normalized !== "email" &&
+    normalized !== "emailaddress"
   );
+});
 
-  if (emptyFields.length > 0) {
-    setError(
-      `Please fill in all required fields: ${emptyFields.join(", ")}`
-    );
-    return;
-  }
+const emptyFields = requiredHeaders.filter(
+  (header) => !String(editRow[header] ?? "").trim()
+);
+
+if (emptyFields.length > 0) {
+  setError(
+    `Please fill in all required fields: ${emptyFields.join(", ")}`
+  );
+  return;
+}
+
 }
     setSaving(true);
 
@@ -543,7 +636,8 @@ return (
   <div className="contacts-dashboard">
 
     {/* Page heading */}
-{/* Top header: Logo and Logout */}
+
+{/* Top header: Logo left, user profile right */}
 <div className="welcome-header">
   <div className="dashboard-brand">
     <img
@@ -553,48 +647,85 @@ return (
     />
   </div>
 
-  <button className="logout-btn" onClick={onLogout}>
-    <span>↪</span> Logout
-  </button>
-</div>
+  <details className="header-profile-dropdown">
+    <summary className="header-profile-trigger">
+      <div className="header-user-avatar">
+        {user.name?.charAt(0).toUpperCase() || "U"}
+      </div>
+      {/* <span className="header-user-name">
+        {user.name || "User"}
+      </span> */}
+      <span className="header-dropdown-arrow">⋮</span>
+    </summary>
 
-{/* Welcome section and Add Contact button */}
-<div className="dashboard-welcome-row">
-  <div className="profile-info">
-    <div className="user-avatar">
+<div className="header-profile-card">
+  <div className="header-profile-heading">
+    <div className="header-user-avatar large">
       {user.name?.charAt(0).toUpperCase() || "U"}
     </div>
 
-    <div className="welcome-text">
-      <span>Welcome back!</span>
-      <h2>{user.name}</h2>
+    <div className="header-profile-user-info">
+      <h3>{user.name || "User"}</h3>
+
+      <span>
+        {user.profession?.replace(/_/g, " ") || "Member"}
+      </span>
     </div>
 
-    <details className="profile-dropdown">
-      <summary>
-        My Profile <span className="dropdown-arrow">⌄</span>
-      </summary>
+    <button
+      type="button"
+      className="edit-profile-icon"
+      title="Edit Profile"
+      onClick={() => {
+        setEditProfile({
+          name: user.name || "",
+          profession: user.profession || "",
+          contact: user.contact || "",
+          address: user.address || "",
+        });
+        setShowEditProfile(true);
+      }}
+    >
+      ✎
+    </button>
+  </div>
 
-      <div className="profile-card">
-        <div className="profile-card-heading">
-          <div className="user-avatar small">
-            {user.name?.charAt(0).toUpperCase() || "U"}
-          </div>
-
-          <div>
-            <h3>{user.name}</h3>
-            <span>{user.profession || "Member"}</span>
-          </div>
-        </div>
-
-        <hr />
-
-        <p><strong>Contact:</strong> {user.contact}</p>
-        {/* <p><strong>Email:</strong> {user.email || "—"}</p> */}
-        <p><strong>Profession:</strong> {user.profession || "—"}</p>
-        <p><strong>Service Location:</strong> {user.address || "—"}</p>
+ 
+   <div className="profile-contact-details">
+    <div className="profile-detail-row">
+      <div>
+        <small>Contact Number</small>
+        <p>{user.contact || "Not provided"}</p>
       </div>
-    </details>
+    </div>
+
+    <div className="profile-detail-row">
+      <div>
+        <small>Service Location</small>
+        <p>{user.address || "Not provided"}</p>
+      </div>
+    </div>
+  </div>
+ <hr />
+  <button
+    type="button"
+    className="profile-logout-btn"
+    onClick={onLogout}
+  >
+    <span>↪</span>
+    Logout
+  </button>
+</div>
+  </details>
+</div>
+
+
+{/* Welcome section and Add Contact button */}
+
+<div className="dashboard-welcome-row">
+  <div className="welcome-text">
+    <span>Welcome back!</span>
+    <h2>{user.name}</h2>
   </div>
 
   <button
@@ -605,6 +736,7 @@ return (
     + Add Contact
   </button>
 </div>
+
 
     {/* {error && (
       <p className="error-message" role="alert">
@@ -771,71 +903,32 @@ return (
                           : header}
                       </label>
 
-                      {editingIndex === originalIndex ? (
-                        <input
-                          className="card-input"
-                          value={String(editRow[header] ?? "")}
-                          onChange={(event) =>
-                            handleChange(header, event.target.value)
-                          }
-                        />
-                      ) : (
-                        <span>
-                          {header.trim().toLowerCase().replace(/\s+/g, "") === "addedby"
-                            ? (() => {
-                                const addedBy = String(row[header] ?? "").trim();
-                                const currentUser = `${userName} (${userContact})`;
-
-                                return addedBy.toLowerCase() === currentUser.toLowerCase()
-                                  ? "You"
-                                  : addedBy || "—";
-                              })()
-                            : String(row[header] ?? "—") || "—"}
-                        </span>
-                      )}
+                    <span>
+                      {String(row[header] ?? "") || "Not provided"}
+                    </span>
                     </div>
                   ))}
               </div>
 
               {filterType === "my" && (
                 <div className="contact-card-actions">
-                  {editingIndex === originalIndex ? (
-                    <>
-                      <button
-                        className="action-btn save-btn"
-                        onClick={handleSave}
-                        disabled={saving}
-                      >
-                        {saving ? "Saving..." : "Save"}
-                      </button>
+                  <button
+                    type="button"
+                    className="action-btn edit-btn"
+                    onClick={() => handleEdit(originalIndex)}
+                    disabled={isAdding || saving}
+                  >
+                    Edit
+                  </button>
 
-                      <button
-                        className="action-btn cancel-btn"
-                        onClick={handleCancel}
-                        disabled={saving}
-                      >
-                        Cancel
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        className="action-btn edit-btn"
-                        onClick={() => handleEdit(originalIndex)}
-                        disabled={isAdding || saving}
-                      >
-                        Edit
-                      </button>
-
-                      <button
-                        className="action-btn delete-btn"
-                        onClick={() => handleDelete(originalIndex)}
-                        disabled={isAdding || saving}
-                      >
-                        Delete
-                      </button>
-                    </>
-                  )}
+                  <button
+                    type="button"
+                    className="action-btn delete-btn"
+                    onClick={() => handleDelete(originalIndex)}
+                    disabled={isAdding || saving}
+                  >
+                    Delete
+                  </button>
                 </div>
               )}
             </div>
@@ -864,7 +957,9 @@ return (
         >
           <div className="popup-header">
             <div>
-              <h2 id="add-contact-title">Add New Contact</h2>
+              <h2 id="add-contact-title">
+                {isAdding ? "Add New Contact" : "Edit Contact"}
+              </h2>
               <p>Enter professional contact details</p>
 
               {error && (
@@ -902,8 +997,12 @@ return (
             .map((header) => (
               <div className="popup-field" key={header}>
                 <label>
-                  {header} <span className="required-star">*</span>
-                </label>
+                {header.trim().toLowerCase().replace(/\s+/g, "") === "address" ||
+                header.trim().toLowerCase().replace(/\s+/g, "") === "servicelocation"
+                  ? "Service Location"
+                  : header}
+                <span className="required-star">*</span>
+              </label>
                 {header.trim().toLowerCase() === "profession" ? (
                   <select
                     required
@@ -930,7 +1029,15 @@ return (
                     header.trim().toLowerCase().replace(/\s+/g, "") ===
                     "servicelocation"
                   ) ? (
+                    <>
                     <div ref={locationRef}></div>
+
+                    {editRow[header] && (
+                      <small className="selected-location">
+                        Selected: {String(editRow[header])}
+                      </small>
+                    )}
+                  </>
                   ) : (
                     <input
                       type="text"
@@ -955,18 +1062,103 @@ return (
               Cancel
             </button>
 
-            <button
-              className="action-btn save-btn"
-              onClick={handleSave}
-              disabled={saving}
-            >
-              {saving ? "Saving..." : "Save Contact"}
-            </button>
+          <button
+            className="action-btn save-btn"
+            onClick={handleSave}
+            disabled={saving}
+          >
+            {saving
+              ? "Saving..."
+              : isAdding
+                ? "Save Contact"
+                : "Update Contact"}
+          </button>
           </div>
         </div>
       </div>
     )}
+{showEditProfile && (
+  <div className="profile-modal-overlay">
+    <div className="profile-edit-modal">
 
+      <div className="profile-modal-header">
+        <h2>Edit Profile</h2>
+
+        <button
+          type="button"
+          className="modal-close-btn"
+          onClick={() => setShowEditProfile(false)}
+        >
+          ×
+        </button>
+      </div>
+
+      <div className="profile-form-group">
+        <label>Name</label>
+        <input
+          type="text"
+          name="name"
+          value={editProfile.name}
+          onChange={handleProfileChange}
+          placeholder="Enter your name"
+        />
+      </div>
+
+      <div className="profile-form-group">
+        <label>Profession</label>
+        <input
+          type="text"
+          name="profession"
+          value={editProfile.profession}
+          onChange={handleProfileChange}
+          placeholder="Enter your profession"
+        />
+      </div>
+
+      <div className="profile-form-group">
+        <label>Contact</label>
+        <input
+          type="text"
+          name="contact"
+          value={editProfile.contact}
+          onChange={handleProfileChange}
+          placeholder="Enter contact number"
+        />
+      </div>
+
+      <div className="profile-form-group">
+        <label>Service Location</label>
+
+        <div ref={editProfileLocationRef}></div>
+
+        {editProfile.address && (
+          <small className="selected-location">
+            Selected: {editProfile.address}
+          </small>
+        )}
+      </div>
+
+      <div className="profile-modal-actions">
+        <button
+          type="button"
+          className="cancel-profile-btn"
+          onClick={() => setShowEditProfile(false)}
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          className="save-profile-btn save-btn"
+          onClick={handleSaveProfile}
+        >
+          Save Changes
+        </button>
+      </div>
+
+    </div>
+  </div>
+)}
   </div>
 );
 }
