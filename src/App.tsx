@@ -310,31 +310,62 @@ const handleLogout = () => {
   setMessage("");
 };
 
-const handleUpdateUser = (updatedDetails: {
+
+const handleUpdateUser = async (updatedDetails: {
   name: string;
   profession: string;
   contact: string;
   address: string;
 }) => {
-  setUser((prevUser) => {
-    const updatedUser = {
-      ...prevUser,
-      ...updatedDetails,
+  try {
+    const originalContact = user.contact;
+
+    const response = await fetch(API_URL, {
+      method: "POST",
+      body: JSON.stringify({
+        action: "updateProfile",
+        originalContact: originalContact,
+        name: updatedDetails.name,
+        profession: updatedDetails.profession,
+        contact: updatedDetails.contact,
+        address: updatedDetails.address,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Unable to update profile.");
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.message || "Profile update failed.");
+    }
+
+    const updatedUser: StoredUser = {
+      name: result.user.name || "",
+      profession: result.user.profession || "",
+      contact: result.user.contact || "",
+      address: result.user.address || "",
     };
+
+    setUser({
+      ...updatedUser,
+      password: "",
+    });
 
     localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({
-        name: updatedUser.name,
-        profession: updatedUser.profession,
-        contact: updatedUser.contact,
-        address: updatedUser.address,
-      })
+      JSON.stringify(updatedUser)
     );
 
-    return updatedUser;
-  });
+  } catch (error) {
+    console.error("Profile update error:", error);
+    throw error;
+  }
 };
+
+
 
 
 if (loggedIn) {

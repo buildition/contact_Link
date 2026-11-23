@@ -18,7 +18,7 @@ type ExcelDataProps = {
     profession: string;
     contact: string;
     address: string;
-  }) => void;
+  }) => Promise<void>;
 };
 
 const API_URL =
@@ -39,6 +39,8 @@ function ExcelData({ user, onLogout, onUpdateUser }: ExcelDataProps) {
   const [showAddPopup, setShowAddPopup] = useState(false);
   const locationRef = useRef<HTMLDivElement>(null);
   const editProfileLocationRef = useRef<HTMLDivElement>(null);
+  const profileDropdownRef = useRef<HTMLDetailsElement>(null);
+  const [duplicateContact, setDuplicateContact] = useState(false);
 
   const professionGroups = [
     {
@@ -202,9 +204,18 @@ const handleProfileChange = (
   }));
 };
 
-const handleSaveProfile = () => {
-  onUpdateUser(editProfile);
-  setShowEditProfile(false);
+const handleSaveProfile = async () => {
+  try {
+    await onUpdateUser(editProfile);
+    setShowEditProfile(false);
+    setError("");
+  } catch (error) {
+    setError(
+      error instanceof Error
+        ? error.message
+        : "Unable to update profile."
+    );
+  }
 };
 
 const getCityState = (address: string) => {
@@ -432,10 +443,30 @@ useEffect(() => {
   };
 }, [showEditProfile]);
 
+useEffect(() => {
+  const handleOutsideClick = (event: MouseEvent) => {
+    const dropdown = profileDropdownRef.current;
+
+    if (
+      dropdown &&
+      !dropdown.contains(event.target as Node)
+    ) {
+      dropdown.open = false;
+    }
+  };
+
+  document.addEventListener("mousedown", handleOutsideClick);
+
+  return () => {
+    document.removeEventListener("mousedown", handleOutsideClick);
+  };
+}, []);
+
   const headers = Object.keys(rows[0] ?? editRow);
 
 const handleAdd = () => {
   setError("");
+  setDuplicateContact(false);
 
   if (rows.length === 0) {
     setError("No column headers are available.");
@@ -473,15 +504,49 @@ const handleEdit = (originalIndex: number) => {
   setShowAddPopup(true);
 };
 
+const normalizeContact = (value: unknown) =>
+  String(value ?? "").replace(/\D/g, "");
 
-  const handleChange = (header: string, value: string) => {
-    setEditRow((previous) => ({
-      ...previous,
-      [header]: value,
-    }));
-  };
+const isContactHeader = (header: string) =>
+  ["contact", "contactnumber", "mobile", "mobilenumber", "phone", "phonenumber"]
+    .includes(header.trim().toLowerCase().replace(/\s+/g, ""));
+
+const handleChange = (header: string, value: string) => {
+  setEditRow((previous) => ({
+    ...previous,
+    [header]: value,
+  }));
+
+  // Check duplicate mobile number only while adding a new contact
+  if (isAdding && isContactHeader(header)) {
+    const enteredContact = normalizeContact(value);
+
+    if (enteredContact.length === 10) {
+      const contactHeader = Object.keys(rows[0] || {}).find(
+        (column) => isContactHeader(column)
+      );
+
+      const alreadyExists = rows.some((row) => {
+        const existingContact = normalizeContact(
+          contactHeader ? row[contactHeader] : ""
+        );
+
+        return existingContact === enteredContact;
+      });
+
+      setDuplicateContact(alreadyExists);
+    } else {
+      setDuplicateContact(false);
+    }
+  }
+};
 
   const handleSave = async () => {
+    if (isAdding && duplicateContact) {
+  setError("Mobile number already exists!");
+  return;
+}
+
     if (saving) return;
 
     if (!isAdding && editingIndex === null) return;
@@ -647,7 +712,10 @@ return (
     />
   </div>
 
-  <details className="header-profile-dropdown">
+  <details
+  className="header-profile-dropdown"
+  ref={profileDropdownRef}
+>
     <summary className="header-profile-trigger">
       <div className="header-user-avatar">
         {user.name?.charAt(0).toUpperCase() || "U"}
@@ -1003,51 +1071,58 @@ return (
                   : header}
                 <span className="required-star">*</span>
               </label>
-                {header.trim().toLowerCase() === "profession" ? (
-                  <select
-                    required
-                    value={String(editRow[header] ?? "")}
-                    onChange={(event) =>
-                      handleChange(header, event.target.value)
-                    }
-                  >
-                    <option value="">Select Your Profession</option>
-
-                    {professionGroups.map((group) => (
-                      <optgroup label={group.label} key={group.label}>
-                        {group.options.map(([value, label]) => (
-                          <option value={value} key={value}>
-                            {label}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
-                  ) : (
-                    header.trim().toLowerCase().replace(/\s+/g, "") ===
-                    "address" ||
-                    header.trim().toLowerCase().replace(/\s+/g, "") ===
-                    "servicelocation"
-                  ) ? (
-                    <>
-                    <div ref={locationRef}></div>
-
-                    {editRow[header] && (
-                      <small className="selected-location">
-                        Selected: {String(editRow[header])}
-                      </small>
-                    )}
-                  </>
-                  ) : (
-                    <input
-                      type="text"
+                  {header.trim().toLowerCase() === "profession" ? (
+                    <select
                       required
                       value={String(editRow[header] ?? "")}
                       onChange={(event) =>
                         handleChange(header, event.target.value)
                       }
-                      placeholder={`Enter ${header}`}
-                    />
+                    >
+                      <option value="">Select Your Profession</option>
+
+                      {professionGroups.map((group) => (
+                        <optgroup label={group.label} key={group.label}>
+                          {group.options.map(([value, label]) => (
+                            <option value={value} key={value}>
+                              {label}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                  ) : (
+                    header.trim().toLowerCase().replace(/\s+/g, "") === "address" ||
+                    header.trim().toLowerCase().replace(/\s+/g, "") === "servicelocation"
+                  ) ? (
+                    <>
+                      <div ref={locationRef}></div>
+
+                      {editRow[header] && (
+                        <small className="selected-location">
+                          Selected: {String(editRow[header])}
+                        </small>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <input
+                        type={isContactHeader(header) ? "tel" : "text"}
+                        required
+                        value={String(editRow[header] ?? "")}
+                        maxLength={isContactHeader(header) ? 10 : undefined}
+                        onChange={(event) =>
+                          handleChange(header, event.target.value)
+                        }
+                        placeholder={`Enter ${header}`}
+                      />
+
+                      {isAdding && isContactHeader(header) && duplicateContact && (
+                        <small className="popup-error-message">
+                          Mobile number already exists!
+                        </small>
+                      )}
+                    </>
                   )}
               </div>
             ))}
@@ -1062,17 +1137,17 @@ return (
               Cancel
             </button>
 
-          <button
-            className="action-btn save-btn"
-            onClick={handleSave}
-            disabled={saving}
-          >
-            {saving
-              ? "Saving..."
-              : isAdding
-                ? "Save Contact"
-                : "Update Contact"}
-          </button>
+            <button
+              className="action-btn save-btn"
+              onClick={handleSave}
+              disabled={saving || (isAdding && duplicateContact)}
+            >
+              {saving
+                ? "Saving..."
+                : isAdding
+                  ? "Save Contact"
+                  : "Update Contact"}
+            </button>
           </div>
         </div>
       </div>
@@ -1092,7 +1167,11 @@ return (
           ×
         </button>
       </div>
-
+      {error && (
+      <p className="popup-error-message" role="alert">
+        {error}
+      </p>
+    )}
       <div className="profile-form-group">
         <label>Name</label>
         <input
@@ -1106,23 +1185,37 @@ return (
 
       <div className="profile-form-group">
         <label>Profession</label>
-        <input
-          type="text"
+
+        <select
           name="profession"
           value={editProfile.profession}
           onChange={handleProfileChange}
-          placeholder="Enter your profession"
-        />
+          required
+        >
+          <option value="">Select Your Profession</option>
+
+          {professionGroups.map((group) => (
+            <optgroup label={group.label} key={group.label}>
+              {group.options.map(([value, label]) => (
+                <option value={value} key={value}>
+                  {label}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
       </div>
 
       <div className="profile-form-group">
         <label>Contact</label>
         <input
-          type="text"
+          type="tel"
           name="contact"
           value={editProfile.contact}
           onChange={handleProfileChange}
           placeholder="Enter contact number"
+          pattern="[0-9]{10}"
+          maxLength={10}
         />
       </div>
 
