@@ -1058,3 +1058,99 @@
   margin: 8px 0px;
     font-size: 14px;
 }
+.contact-validation {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+}
+
+.contact-validation.error {
+  color: #dc3545;
+}
+
+.contact-validation.success {
+  color: #198754;
+}
+.auth-form button:disabled {
+  background-color: #999;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.contact-validation {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+}
+
+.contact-validation.error {
+  color: #dc3545;
+}
+
+.contact-validation.success {
+  color: #198754;
+}
+.css-b62m3t-container {
+  width: 100%;
+  margin-bottom: 15px;
+}
+
+.css-13cymwt-control {
+  min-height: 44px;
+  border-radius: 6px !important;
+  border-color: #ccc !important;
+}
+
+.css-13cymwt-control:hover {
+  border-color: #32385d !important;
+}
+.css-1dimb5e-singleValue 
+{
+  font-size: 13px;
+}
+.verified-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  background-color: #e6f7ed;
+  color: #168344;
+  font-size: 11px;
+  font-weight: 600;
+  vertical-align: middle;
+  white-space: nowrap;
+  text-transform: none !important;
+}
+.profession-select {
+  width: 100%;
+  font-size: 14px;
+}
+
+.profession-select__control {
+  min-height: 42px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+.profession-select__control:hover {
+  border-color: #32385d;
+}
+
+.profession-select__control--is-focused {
+  border-color: #32385d !important;
+  box-shadow: 0 0 0 1px #32385d !important;
+}
+
+.profession-select__menu {
+  z-index: 1000;
+}
+
+.profession-select__option--is-focused {
+  background-color: #eef0f8;
+}
+
+.profession-select__option--is-selected {
+  background-color: #32385d;
+}

@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import "./App.css";
 import contactLinkLogo from "./assets/images/Contact_Link_Logo.png";
+import Select from "react-select";
 
 type RowData = Record<string, string | number | boolean | null | undefined>;
 
@@ -41,6 +42,7 @@ function ExcelData({ user, onLogout, onUpdateUser }: ExcelDataProps) {
   const editProfileLocationRef = useRef<HTMLDivElement>(null);
   const profileDropdownRef = useRef<HTMLDetailsElement>(null);
   const [duplicateContact, setDuplicateContact] = useState(false);
+  const [nameError, setNameError] = useState("");
 
   const professionGroups = [
     {
@@ -237,12 +239,63 @@ const getCityState = (address: string) => {
 //   );
 
   // Keep each row's original index for edit/delete operations.
+const getContactHeader = (row: RowData) =>
+  Object.keys(row).find((header) =>
+    [
+      "contact",
+      "contactnumber",
+      "mobile",
+      "mobilenumber",
+      "phone",
+      "phonenumber",
+    ].includes(header.trim().toLowerCase().replace(/[\s_-]/g, ""))
+  );
+
+// Check whether this contact has registered an account.
+const isVerifiedContact = (row: RowData) => {
+  const contactHeader = getContactHeader(row);
+  const ownerHeader = getOwnerHeader(row);
+
+  if (!contactHeader || !ownerHeader) return false;
+
+  const contactNumber = normalizeContact(row[contactHeader]);
+
+  const addedBy = String(row[ownerHeader] ?? "");
+
+  const ownerNumbers = addedBy.match(/\((\d{10})\)/g) || [];
+
+  return ownerNumbers.some(
+    (owner) => normalizeContact(owner) === contactNumber
+  );
+};
 
 const getOwnerHeader = (row: RowData) =>
   Object.keys(row).find(
     (header) =>
       header.trim().toLowerCase().replace(/\s+/g, "") === "addedby"
   );
+
+const getVerifiedByName = (row: RowData) => {
+  const contactHeader = getContactHeader(row);
+  const ownerHeader = getOwnerHeader(row);
+
+  if (!contactHeader || !ownerHeader) return "";
+
+  const contactNumber = normalizeContact(row[contactHeader]);
+  const addedBy = String(row[ownerHeader] ?? "");
+
+  const owners = addedBy.split(";");
+
+  const verifiedOwner = owners.find((owner) => {
+    const match = owner.match(/\((\d{10})\)/);
+
+    return match && normalizeContact(match[1]) === contactNumber;
+  });
+
+  return verifiedOwner
+    ? verifiedOwner.replace(/\s*\(\d{10}\)/, "").trim()
+    : "";
+};
 
 const filteredRows = rows
   .map((row, originalIndex) => ({ row, originalIndex }))
@@ -256,12 +309,13 @@ const filteredRows = rows
       const addedBy = String(row[ownerHeader] ?? "").trim();
       const contact = String(userContact ?? "").trim();
 
-      if (
-        addedBy !== contact &&
-        !addedBy.endsWith(`(${contact})`)
-      ) {
-        return false;
-      }
+   const ownerNumbers = addedBy.match(/\((\d{10})\)/g) || [];
+
+    const isOwner = ownerNumbers.some(
+      owner => owner.replace(/[()]/g, "") === contact
+    );
+
+    if (!isOwner) return false;
     }
 
     // Profession filter
@@ -493,6 +547,7 @@ const handleAdd = () => {
   setEditingIndex(null);
   setIsAdding(true);
   setShowAddPopup(true);
+  setNameError("");
 };
 
 
@@ -511,7 +566,25 @@ const isContactHeader = (header: string) =>
   ["contact", "contactnumber", "mobile", "mobilenumber", "phone", "phonenumber"]
     .includes(header.trim().toLowerCase().replace(/\s+/g, ""));
 
+const isNameHeader = (header: string) =>
+  header.trim().toLowerCase() === "name";
+
 const handleChange = (header: string, value: string) => {
+
+  // Name validation
+  if (isNameHeader(header)) {
+    if (value.length > 50) {
+      setNameError("Name cannot exceed 50 characters.");
+      return;
+    }
+
+    setNameError(
+      value.length > 0 && !/^[A-Za-z\s]+$/.test(value)
+        ? "Name should contain letters only."
+        : ""
+    );
+  }
+
   setEditRow((previous) => ({
     ...previous,
     [header]: value,
@@ -554,28 +627,26 @@ const handleChange = (header: string, value: string) => {
     setError("");
     // Validate required fields when adding a new contact
 if (isAdding) {
+  const nameHeader = headers.find((header) => isNameHeader(header));
 
-const requiredHeaders = headers.filter((header) => {
-  const normalized = header.trim().toLowerCase().replace(/\s+/g, "");
+  if (nameHeader) {
+    const enteredName = String(editRow[nameHeader] ?? "").trim();
 
-  return (
-    normalized !== "addedby" &&
-    normalized !== "email" &&
-    normalized !== "emailaddress"
-  );
-});
+    if (!enteredName) {
+      setNameError("Name is required.");
+      return;
+    }
 
-const emptyFields = requiredHeaders.filter(
-  (header) => !String(editRow[header] ?? "").trim()
-);
+    if (!/^[A-Za-z\s]+$/.test(enteredName)) {
+      setNameError("Name should contain letters only.");
+      return;
+    }
 
-if (emptyFields.length > 0) {
-  setError(
-    `Please fill in all required fields: ${emptyFields.join(", ")}`
-  );
-  return;
-}
-
+    if (enteredName.length > 50) {
+      setNameError("Name cannot exceed 50 characters.");
+      return;
+    }
+  }
 }
     setSaving(true);
 
@@ -635,6 +706,7 @@ const handleCancel = () => {
   setIsAdding(false);
   setShowAddPopup(false);
   setError("");
+  setNameError("");
 };
 
   const handleDelete = async (originalIndex: number) => {
@@ -902,8 +974,16 @@ return (
                 {contactName.charAt(0).toUpperCase()}
               </div>
 
-              <div className="contact-card-title">
-                <h3>{contactName}</h3>
+            <div className="contact-card-title">
+              <h3>
+                {contactName}
+
+                {isVerifiedContact(row) && (
+                  <span className="verified-badge">
+                    ✓ Verified by {getVerifiedByName(row)}
+                  </span>
+                )}
+              </h3>
 
                 <div className="contact-profession-location">
                   <span className="contact-profession">
@@ -978,7 +1058,7 @@ return (
                   ))}
               </div>
 
-              {filterType === "my" && (
+              {filterType === "my" && !isVerifiedContact(row) && (
                 <div className="contact-card-actions">
                   <button
                     type="button"
@@ -1071,26 +1151,41 @@ return (
                   : header}
                 <span className="required-star">*</span>
               </label>
-                  {header.trim().toLowerCase() === "profession" ? (
-                    <select
-                      required
-                      value={String(editRow[header] ?? "")}
-                      onChange={(event) =>
-                        handleChange(header, event.target.value)
-                      }
-                    >
-                      <option value="">Select Your Profession</option>
-
-                      {professionGroups.map((group) => (
-                        <optgroup label={group.label} key={group.label}>
-                          {group.options.map(([value, label]) => (
-                            <option value={value} key={value}>
-                              {label}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ))}
-                    </select>
+              {header.trim().toLowerCase() === "profession" ? (
+                <Select
+                  options={professionGroups.map((group) => ({
+                    label: group.label,
+                    options: group.options.map(([value, label]) => ({
+                      value,
+                      label,
+                    })),
+                  }))}
+                  value={
+                    editRow[header]
+                      ? professionGroups
+                          .flatMap((group) =>
+                            group.options.map(([value, label]) => ({
+                              value,
+                              label,
+                            }))
+                          )
+                          .find(
+                            (option) => option.value === String(editRow[header])
+                          ) || {
+                            value: String(editRow[header]),
+                            label: String(editRow[header]).replace(/_/g, " "),
+                          }
+                      : null
+                  }
+                  onChange={(selectedOption) =>
+                    handleChange(header, selectedOption?.value || "")
+                  }
+                  placeholder="Search or select your profession..."
+                  isSearchable
+                  isClearable
+                  className="profession-select"
+                  classNamePrefix="profession-select"
+                />
                   ) : (
                     header.trim().toLowerCase().replace(/\s+/g, "") === "address" ||
                     header.trim().toLowerCase().replace(/\s+/g, "") === "servicelocation"
@@ -1106,16 +1201,22 @@ return (
                     </>
                   ) : (
                     <>
-                      <input
-                        type={isContactHeader(header) ? "tel" : "text"}
-                        required
-                        value={String(editRow[header] ?? "")}
-                        maxLength={isContactHeader(header) ? 10 : undefined}
-                        onChange={(event) =>
-                          handleChange(header, event.target.value)
-                        }
-                        placeholder={`Enter ${header}`}
-                      />
+                <input
+                  type={isContactHeader(header) ? "tel" : "text"}
+                  required
+                  value={String(editRow[header] ?? "")}
+                  maxLength={isContactHeader(header) ? 10 : undefined}
+                  onChange={(event) =>
+                    handleChange(header, event.target.value)
+                  }
+                  placeholder={`Enter ${header}`}
+                />
+
+                {isNameHeader(header) && nameError && (
+                  <small className="popup-error-message">
+                    {nameError}
+                  </small>
+                )}
 
                       {isAdding && isContactHeader(header) && duplicateContact && (
                         <small className="popup-error-message">
