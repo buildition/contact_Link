@@ -2,6 +2,8 @@ import { useEffect, useState, useRef } from "react";
 import "./App.css";
 import contactLinkLogo from "./assets/images/Contact_Link_Logo.png";
 import Select from "react-select";
+import ProfilePage from "./ProfilePage";
+import "./ProfilePage.css";
 
 type RowData = Record<string, string | number | boolean | null | undefined>;
 
@@ -9,6 +11,7 @@ type ExcelDataProps = {
   user: {
     name: string;
     profession: string;
+    description: string;
     contact: string;
     address: string;
     password: string;
@@ -17,6 +20,7 @@ type ExcelDataProps = {
   onUpdateUser: (updatedDetails: {
     name: string;
     profession: string;
+    description: string;
     contact: string;
     address: string;
   }) => Promise<void>;
@@ -43,6 +47,8 @@ function ExcelData({ user, onLogout, onUpdateUser }: ExcelDataProps) {
   const profileDropdownRef = useRef<HTMLDetailsElement>(null);
   const [duplicateContact, setDuplicateContact] = useState(false);
   const [nameError, setNameError] = useState("");
+  const [contactError, setContactError] = useState("");
+  const [showProfileDetails, setShowProfileDetails] = useState(false);
 
   const professionGroups = [
     {
@@ -191,14 +197,50 @@ function ExcelData({ user, onLogout, onUpdateUser }: ExcelDataProps) {
 const [editProfile, setEditProfile] = useState({
   name: user.name || "",
   profession: user.profession || "",
+  description: user.description || "",
   contact: user.contact || "",
   address: user.address || "",
 });
 
+const [profileNameError, setProfileNameError] = useState("");
+const [profileContactError, setProfileContactError] = useState("");
+const [profileError, setProfileError] = useState("");
+
 const handleProfileChange = (
-  e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
 ) => {
-  const { name, value } = e.target;
+  const { name } = e.target;
+  let { value } = e.target;
+
+  if (name === "name") {
+    if (value.length > 50) {
+      setProfileNameError("Name cannot exceed 50 characters.");
+      return;
+    }
+
+    setProfileNameError(
+      value.length > 0 && !/^[A-Za-z\s]+$/.test(value)
+        ? "Name should contain letters only."
+        : ""
+    );
+  }
+
+  if (name === "contact") {
+    value = value.replace(/\D/g, "").slice(0, 10);
+
+    if (value.length > 0 && value.length < 10) {
+      setProfileContactError("Please enter a valid 10-digit mobile number.");
+    } else if (
+      value.length === 10 &&
+      !/^[6-9]\d{9}$/.test(value)
+    ) {
+      setProfileContactError(
+        "Mobile number must start with 6, 7, 8, or 9."
+      );
+    } else {
+      setProfileContactError("");
+    }
+  }
 
   setEditProfile((prev) => ({
     ...prev,
@@ -207,16 +249,94 @@ const handleProfileChange = (
 };
 
 const handleSaveProfile = async () => {
+  setProfileError("");
+
+  const enteredName = editProfile.name.trim();
+  const enteredContact = editProfile.contact.trim();
+
+  if (!enteredName) {
+    setProfileNameError("Name is required.");
+    return;
+  }
+
+  if (!/^[A-Za-z\s]+$/.test(enteredName)) {
+    setProfileNameError("Name should contain letters only.");
+    return;
+  }
+
+  if (enteredName.length > 50) {
+    setProfileNameError("Name cannot exceed 50 characters.");
+    return;
+  }
+
+  if (!editProfile.profession) {
+    setProfileError("Please select your profession.");
+    return;
+  }
+
+  if (!/^[6-9]\d{9}$/.test(enteredContact)) {
+    setProfileContactError(
+      "Please enter a valid 10-digit mobile number starting with 6, 7, 8, or 9."
+    );
+    return;
+  }
+
+  if (!editProfile.address.trim()) {
+    setProfileError("Please select your service location.");
+    return;
+  }
+
+  if (editProfile.description.length > 300) {
+    setProfileError("Description cannot exceed 300 characters.");
+    return;
+  }
+
   try {
-    await onUpdateUser(editProfile);
+    await onUpdateUser({
+      name: enteredName,
+      profession: editProfile.profession,
+      description: editProfile.description,
+      contact: enteredContact,
+      address: editProfile.address,
+    });
+
     setShowEditProfile(false);
     setError("");
   } catch (error) {
-    setError(
+    setProfileError(
       error instanceof Error
         ? error.message
         : "Unable to update profile."
     );
+  }
+};
+
+const handleDeleteAccount = async () => {
+  try {
+    const response = await fetch(API_URL, {
+      method: "POST",
+      body: JSON.stringify({
+        action: "deleteAccount",
+        contact: user.contact,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Unable to delete account.");
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.message || "Account deletion failed.");
+    }
+
+    // Logout after successful account deletion
+    onLogout();
+  } catch (error) {
+    throw error instanceof Error
+      ? error
+      : new Error("Unable to delete account. Please try again.");
   }
 };
 
@@ -548,6 +668,7 @@ const handleAdd = () => {
   setIsAdding(true);
   setShowAddPopup(true);
   setNameError("");
+  setContactError("");
 };
 
 
@@ -585,12 +706,29 @@ const handleChange = (header: string, value: string) => {
     );
   }
 
+  // Mobile number validation - same as Signup
+  if (isContactHeader(header)) {
+    const digitsOnly = value.replace(/\D/g, "").slice(0, 10);
+
+    value = digitsOnly;
+
+    if (digitsOnly.length > 0 && !/^[6-9]\d{9}$/.test(digitsOnly)) {
+      setContactError(
+        digitsOnly.length < 10
+          ? "Please enter a valid 10-digit mobile number."
+          : "Mobile number must start with 6, 7, 8, or 9."
+      );
+    } else {
+      setContactError("");
+    }
+  }
+
   setEditRow((previous) => ({
     ...previous,
     [header]: value,
   }));
 
-  // Check duplicate mobile number only while adding a new contact
+  // Check duplicate mobile number only while adding
   if (isAdding && isContactHeader(header)) {
     const enteredContact = normalizeContact(value);
 
@@ -612,6 +750,37 @@ const handleChange = (header: string, value: string) => {
       setDuplicateContact(false);
     }
   }
+};
+
+const isRequiredField = (header: string) => {
+  const normalized = header.trim().toLowerCase().replace(/\s+/g, "");
+
+  return (
+    normalized !== "description" &&
+    normalized !== "email" &&
+    normalized !== "emailaddress" &&
+    normalized !== "addedby"
+  );
+};
+
+const isFormValid = () => {
+  if (!isAdding) return true;
+
+  const requiredFieldsValid = headers
+    .filter(isRequiredField)
+    .every((header) => String(editRow[header] ?? "").trim() !== "");
+
+  const contactHeader = headers.find((header) =>
+    isContactHeader(header)
+  );
+
+  const contact = contactHeader
+    ? String(editRow[contactHeader] ?? "")
+    : "";
+
+  const validContact = /^[6-9]\d{9}$/.test(contact);
+
+  return requiredFieldsValid && validContact;
 };
 
   const handleSave = async () => {
@@ -707,6 +876,7 @@ const handleCancel = () => {
   setShowAddPopup(false);
   setError("");
   setNameError("");
+  setContactError("");
 };
 
   const handleDelete = async (originalIndex: number) => {
@@ -767,7 +937,54 @@ const handleCancel = () => {
   //   cursor: "pointer",
   // } as const;
 
-  if (loading) return <p>Loading spreadsheet data...</p>;
+if (showProfileDetails) {
+  return (
+    <ProfilePage
+      user={{
+        name: user.name,
+        profession: user.profession,
+        description: user.description,
+        contact: user.contact,
+        address: user.address,
+      }}
+      onBack={() => setShowProfileDetails(false)}
+      onLogout={onLogout}
+      onDeleteAccount={handleDeleteAccount}
+      onEdit={() => {
+        setEditProfile({
+          name: user.name || "",
+          profession: user.profession || "",
+          description: user.description || "",
+          contact: user.contact || "",
+          address: user.address || "",
+        });
+
+        setProfileNameError("");
+        setProfileContactError("");
+        setProfileError("");
+        setShowEditProfile(true);
+      }}
+      showEditProfile={showEditProfile}
+      editProfile={editProfile}
+      professionGroups={professionGroups}
+      editProfileLocationRef={editProfileLocationRef}
+      profileNameError={profileNameError}
+      profileContactError={profileContactError}
+      profileError={profileError}
+      handleProfileChange={handleProfileChange}
+      setEditProfile={setEditProfile}
+      handleSaveProfile={handleSaveProfile}
+      onCancelEdit={() => {
+        setShowEditProfile(false);
+        setProfileNameError("");
+        setProfileContactError("");
+        setProfileError("");
+      }}
+    />
+  );
+}
+
+if (loading) return <p>Loading spreadsheet data...</p>;
 
 return (
   <div className="contacts-dashboard">
@@ -812,40 +1029,33 @@ return (
       </span>
     </div>
 
-    <button
-      type="button"
-      className="edit-profile-icon"
-      title="Edit Profile"
-      onClick={() => {
-        setEditProfile({
-          name: user.name || "",
-          profession: user.profession || "",
-          contact: user.contact || "",
-          address: user.address || "",
-        });
-        setShowEditProfile(true);
-      }}
-    >
-      ✎
-    </button>
+
   </div>
 
  
-   <div className="profile-contact-details">
-    <div className="profile-detail-row">
-      <div>
-        <small>Contact Number</small>
-        <p>{user.contact || "Not provided"}</p>
-      </div>
-    </div>
+<div className="profile-menu-options">
 
-    <div className="profile-detail-row">
-      <div>
-        <small>Service Location</small>
-        <p>{user.address || "Not provided"}</p>
-      </div>
-    </div>
-  </div>
+<button
+  type="button"
+  className="profile-menu-item"
+  onClick={() => {
+    setShowProfileDetails(true);
+    profileDropdownRef.current?.removeAttribute("open");
+  }}
+>
+  <span>Profile</span>
+  <span className="profile-menu-arrow">›</span>
+</button>
+
+  {/* <button
+    type="button"
+    className="profile-menu-item"
+  >
+    <span>Settings</span>
+    <span className="profile-menu-arrow">›</span>
+  </button> */}
+
+</div>
  <hr />
   <button
     type="button"
@@ -1149,7 +1359,9 @@ return (
                 header.trim().toLowerCase().replace(/\s+/g, "") === "servicelocation"
                   ? "Service Location"
                   : header}
-                <span className="required-star">*</span>
+                {isRequiredField(header) && (
+                  <span className="required-star">*</span>
+                )}
               </label>
               {header.trim().toLowerCase() === "profession" ? (
                 <Select
@@ -1186,45 +1398,73 @@ return (
                   className="profession-select"
                   classNamePrefix="profession-select"
                 />
-                  ) : (
-                    header.trim().toLowerCase().replace(/\s+/g, "") === "address" ||
-                    header.trim().toLowerCase().replace(/\s+/g, "") === "servicelocation"
-                  ) ? (
-                    <>
-                      <div ref={locationRef}></div>
+              ) : header.trim().toLowerCase() === "description" ? (
+                <>
+                  <textarea
+                    value={String(editRow[header] ?? "")}
+                    onChange={(event) =>
+                      handleChange(header, event.target.value)
+                    }
+                    placeholder="Enter description (optional)"
+                    maxLength={300}
+                    rows={3}
+                  />
 
-                      {editRow[header] && (
-                        <small className="selected-location">
-                          Selected: {String(editRow[header])}
-                        </small>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                <input
-                  type={isContactHeader(header) ? "tel" : "text"}
-                  required
-                  value={String(editRow[header] ?? "")}
-                  maxLength={isContactHeader(header) ? 10 : undefined}
-                  onChange={(event) =>
-                    handleChange(header, event.target.value)
-                  }
-                  placeholder={`Enter ${header}`}
-                />
-
-                {isNameHeader(header) && nameError && (
-                  <small className="popup-error-message">
-                    {nameError}
+                  <small className="character-count">
+                    {String(editRow[header] ?? "").length}/300 characters
                   </small>
-                )}
+                </>
+              ) : (
+                header.trim().toLowerCase().replace(/\s+/g, "") === "address" ||
+                header.trim().toLowerCase().replace(/\s+/g, "") === "servicelocation"
+              ) ? (
+                <>
+                  <div ref={locationRef}></div>
 
-                      {isAdding && isContactHeader(header) && duplicateContact && (
-                        <small className="popup-error-message">
-                          Mobile number already exists!
-                        </small>
-                      )}
-                    </>
+                  {editRow[header] && (
+                    <small className="selected-location">
+                      Selected: {String(editRow[header])}
+                    </small>
                   )}
+                </>
+              ) : (
+                <>
+            <input
+              type={isContactHeader(header) ? "tel" : "text"}
+              required={isRequiredField(header)}
+              value={String(editRow[header] ?? "")}
+              maxLength={isContactHeader(header) ? 10 : undefined}
+              inputMode={isContactHeader(header) ? "numeric" : undefined}
+              pattern={isContactHeader(header) ? "[6-9][0-9]{9}" : undefined}
+              onChange={(event) =>
+                handleChange(header, event.target.value)
+              }
+              placeholder={
+                isContactHeader(header)
+                  ? "Enter 10-digit mobile number"
+                  : `Enter ${header}`
+              }
+            />
+
+            {isAdding && isContactHeader(header) && contactError && (
+              <small className="popup-error-message">
+                {contactError}
+              </small>
+            )}
+
+                  {isNameHeader(header) && nameError && (
+                    <small className="popup-error-message">
+                      {nameError}
+                    </small>
+                  )}
+
+                  {isAdding && isContactHeader(header) && duplicateContact && (
+                    <small className="popup-error-message">
+                      Mobile number already exists!
+                    </small>
+                  )}
+                </>
+              )}
               </div>
             ))}
           </div>
@@ -1241,7 +1481,10 @@ return (
             <button
               className="action-btn save-btn"
               onClick={handleSave}
-              disabled={saving || (isAdding && duplicateContact)}
+              disabled={
+                saving ||
+                (isAdding && (!isFormValid() || duplicateContact))
+              }
             >
               {saving
                 ? "Saving..."
@@ -1253,106 +1496,7 @@ return (
         </div>
       </div>
     )}
-{showEditProfile && (
-  <div className="profile-modal-overlay">
-    <div className="profile-edit-modal">
 
-      <div className="profile-modal-header">
-        <h2>Edit Profile</h2>
-
-        <button
-          type="button"
-          className="modal-close-btn"
-          onClick={() => setShowEditProfile(false)}
-        >
-          ×
-        </button>
-      </div>
-      {error && (
-      <p className="popup-error-message" role="alert">
-        {error}
-      </p>
-    )}
-      <div className="profile-form-group">
-        <label>Name</label>
-        <input
-          type="text"
-          name="name"
-          value={editProfile.name}
-          onChange={handleProfileChange}
-          placeholder="Enter your name"
-        />
-      </div>
-
-      <div className="profile-form-group">
-        <label>Profession</label>
-
-        <select
-          name="profession"
-          value={editProfile.profession}
-          onChange={handleProfileChange}
-          required
-        >
-          <option value="">Select Your Profession</option>
-
-          {professionGroups.map((group) => (
-            <optgroup label={group.label} key={group.label}>
-              {group.options.map(([value, label]) => (
-                <option value={value} key={value}>
-                  {label}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
-      </div>
-
-      <div className="profile-form-group">
-        <label>Contact</label>
-        <input
-          type="tel"
-          name="contact"
-          value={editProfile.contact}
-          onChange={handleProfileChange}
-          placeholder="Enter contact number"
-          pattern="[0-9]{10}"
-          maxLength={10}
-        />
-      </div>
-
-      <div className="profile-form-group">
-        <label>Service Location</label>
-
-        <div ref={editProfileLocationRef}></div>
-
-        {editProfile.address && (
-          <small className="selected-location">
-            Selected: {editProfile.address}
-          </small>
-        )}
-      </div>
-
-      <div className="profile-modal-actions">
-        <button
-          type="button"
-          className="cancel-profile-btn"
-          onClick={() => setShowEditProfile(false)}
-        >
-          Cancel
-        </button>
-
-        <button
-          type="button"
-          className="save-profile-btn save-btn"
-          onClick={handleSaveProfile}
-        >
-          Save Changes
-        </button>
-      </div>
-
-    </div>
-  </div>
-)}
   </div>
 );
 }

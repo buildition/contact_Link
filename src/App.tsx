@@ -461,6 +461,17 @@ const handleUpdateUser = async (updatedDetails: {
   address: string;
 }) => {
   try {
+
+    const payload = {
+  action: "updateProfile",
+  originalContact: user.contact,
+  name: updatedDetails.name,
+  profession: updatedDetails.profession,
+  description: updatedDetails.description,
+  contact: updatedDetails.contact,
+  address: updatedDetails.address,
+};
+
     const originalContact = user.contact;
 
     const response = await fetch(API_URL, {

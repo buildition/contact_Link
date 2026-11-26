@@ -126,7 +126,7 @@ h6 {
 } */
 
 
-.welcome-header {
+/* .welcome-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -141,7 +141,7 @@ h6 {
     background: no-repeat;
     font-size: 18px;
     transform: rotate(90deg);
-}
+} */
 
 .profile-info {
   display: flex;
@@ -528,30 +528,7 @@ gmp-place-autocomplete  {
 } */
 
 /* Logout section */
-.profile-logout-btn {
-  width: 100%;
-  margin-top: 18px;
-  padding: 12px 15px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  border: 1px solid #f1d6d7;
-  border-radius: 9px;
-  background: #fff5f5;
-  color: #d92529;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.25s ease;
-}
 
-.profile-logout-btn:hover {
-  background: #e32629;
-  border-color: #e32629;
-  color: #ffffff;
-  box-shadow: 0 5px 12px rgba(227, 38, 41, 0.16);
-}
 
 /* Mobile view */
 @media (max-width: 480px) {
@@ -873,6 +850,10 @@ gmp-place-autocomplete {
 
 .profile-logout-btn:hover {
   background: #ffe5e5;
+}
+.profile-logout-btn span
+{
+  margin-right: 6px;
 }
 
 @media (max-width: 600px) {
