@@ -50,7 +50,12 @@ function ExcelData({ user, onLogout, onUpdateUser }: ExcelDataProps) {
   const [contactError, setContactError] = useState("");
   const [showProfileDetails, setShowProfileDetails] = useState(false);
 
-  const professionGroups = [
+type ProfessionGroup = {
+  label: string;
+  options: [string, string][];
+};
+
+const professionGroups: ProfessionGroup[] = [
     {
       label: "Healthcare & Medicine",
       options: [

@@ -454,36 +454,30 @@ const handleLogout = () => {
 };
 
 
+
 const handleUpdateUser = async (updatedDetails: {
   name: string;
   profession: string;
+  description: string;
   contact: string;
   address: string;
 }) => {
   try {
+    const originalContact = user.contact;
 
     const payload = {
-  action: "updateProfile",
-  originalContact: user.contact,
-  name: updatedDetails.name,
-  profession: updatedDetails.profession,
-  description: updatedDetails.description,
-  contact: updatedDetails.contact,
-  address: updatedDetails.address,
-};
-
-    const originalContact = user.contact;
+      action: "updateProfile",
+      originalContact,
+      name: updatedDetails.name,
+      profession: updatedDetails.profession,
+      description: updatedDetails.description,
+      contact: updatedDetails.contact,
+      address: updatedDetails.address,
+    };
 
     const response = await fetch(API_URL, {
       method: "POST",
-      body: JSON.stringify({
-        action: "updateProfile",
-        originalContact: originalContact,
-        name: updatedDetails.name,
-        profession: updatedDetails.profession,
-        contact: updatedDetails.contact,
-        address: updatedDetails.address,
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
@@ -519,6 +513,7 @@ const handleUpdateUser = async (updatedDetails: {
     throw error;
   }
 };
+
 
 
 
